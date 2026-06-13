@@ -2,7 +2,7 @@
   "name": "whatsuck",
   "version": "1.0.0",
   "description": "WhatsApp Web as a native Ubuntu desktop app",
-  "main": "main.js",
+  "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --linux deb"
@@ -27,8 +27,7 @@
       "icon": "assets/icon",
       "maintainer": "t4kinra",
       "synopsis": "WhatsApp Web as a native desktop app",
-      "syncDesktopName": true,
-      "executableArgs": ["--no-sandbox"]
+      "syncDesktopName": true
     }
   }
 }
