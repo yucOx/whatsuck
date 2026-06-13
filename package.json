@@ -1,0 +1,34 @@
+{
+  "name": "whatsuck",
+  "version": "1.0.0",
+  "description": "WhatsApp Web as a native Ubuntu desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --linux deb"
+  },
+  "author": {
+    "name": "t4kinra",
+    "email": "t4kinra@localhost"
+  },
+  "homepage": "https://web.whatsapp.com",
+  "license": "MIT",
+  "desktopName": "whatsuck",
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.whatsuck.app",
+    "productName": "Whatsuck",
+    "linux": {
+      "target": "deb",
+      "category": "Network",
+      "icon": "assets/icon",
+      "maintainer": "t4kinra",
+      "synopsis": "WhatsApp Web as a native desktop app",
+      "syncDesktopName": true,
+      "executableArgs": ["--no-sandbox"]
+    }
+  }
+}
