@@ -8,38 +8,77 @@ const { installAppMenu } = require('./menu');
 const { attachNotificationBridge } = require('./notifications');
 const { checkKeyringAndWarn } = require('./security');
 const { checkForUpdates } = require('./updater');
+const { loadProfiles, getActiveProfileId } = require('./profiles');
+const { syncDesktopFiles } = require('./desktop');
 
-let mainWindow = null;
+// Track windows by profile id, since multiple windows can coexist.
+const windowsByProfile = new Map();
 
-/**
- * Single entry point for window setup. The notification bridge is
- * attached AFTER the window is created so it can bind to its
- * webContents and session.
- */
-function bootstrap() {
-  mainWindow = createMainWindow({
-    onClosed: () => {
-      mainWindow = null;
-    },
-  });
-
-  attachNotificationBridge(mainWindow);
-
-  installAppMenu({
-    onReload: () => mainWindow && mainWindow.webContents.reload(),
-    onToggleDevTools: () =>
-      mainWindow && mainWindow.webContents.toggleDevTools(),
-  });
-
-  // These are non-blocking and can run after the window is up.
-  // Order matters: warn about security before the update notification.
-  checkKeyringAndWarn(mainWindow);
-  checkForUpdates(mainWindow);
-}
+// Resolve the profile to open on this launch.
+const initialProfileId = getActiveProfileId(process.argv);
 
 // Apply CLI switches before app is ready.
 for (const sw of C.cliSwitches) {
   app.commandLine.appendSwitch(sw);
+}
+
+// Set the X11/Wayland window class to match the per-profile
+// StartupWMClass in the .desktop file, so taskbar grouping works.
+if (initialProfileId !== 'default') {
+  app.commandLine.appendSwitch('class', `whatsuck-${initialProfileId}`);
+}
+
+function registerWindow(win) {
+  windowsByProfile.set(win._profileId, win);
+  win.on('closed', () => {
+    windowsByProfile.delete(win._profileId);
+  });
+}
+
+/**
+ * Open a window for a given profile. If one is already open, focus it.
+ */
+function openProfile(profileId) {
+  if (profileId === 'default') {
+    // Ensure the default profile exists in profiles.json.
+    const profiles = loadProfiles();
+    if (!profiles.some(p => p.id === 'default')) {
+      profiles.unshift({ id: 'default', name: 'Personal', isDefault: true, isPinned: false });
+      require('./profiles').saveProfiles(profiles);
+    }
+  }
+  const existing = windowsByProfile.get(profileId);
+  if (existing && !existing.isDestroyed()) {
+    if (existing.isMinimized()) existing.restore();
+    existing.focus();
+    return existing;
+  }
+
+  const win = createMainWindow({
+    profileId,
+    onClosed: () => {},
+  });
+  registerWindow(win);
+  attachNotificationBridge(win);
+  installAppMenu({
+    currentWindow: () => BrowserWindow.getFocusedWindow() || win,
+  });
+  return win;
+}
+
+function bootstrap() {
+  openProfile(initialProfileId);
+
+  // The default-window menu hint/warn/update should attach to whichever
+  // window is currently focused, since multiple can exist.
+  const primary = windowsByProfile.get(initialProfileId);
+  if (primary) {
+    checkKeyringAndWarn(primary);
+    checkForUpdates(primary);
+  }
+
+  // Reconcile pinned .desktop files with current profile list.
+  syncDesktopFiles(loadProfiles(), app.getPath('exe'));
 }
 
 app.whenReady().then(bootstrap);
@@ -53,8 +92,10 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  // macOS dock-click re-creates the window if none are open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    bootstrap();
+    openProfile(initialProfileId);
   }
 });
+
+// Expose openProfile for the menu module to call.
+module.exports = { openProfile, windowsByProfile };
