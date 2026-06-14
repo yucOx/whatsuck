@@ -138,20 +138,21 @@ Produces `dist/whatsuck_1.0.0_amd64.deb`. Build size is ~85 MB because the whole
 
 ```
 src/
-├── main.js           # Entry point: app lifecycle, CLI switches, multi-window orchestration
-├── window.js         # BrowserWindow factory, per-profile partitions, UA spoofing, external links
-├── profiles.js       # Profile metadata store (load, save, create, delete, rename, setDefault)
-├── desktop.js        # Per-profile .desktop file generation and cleanup
-├── profile-dialog.js # Modal text input dialog (New Profile / Rename)
-├── menu.js           # App menu (File, Profiles, Edit, View)
-├── notifications.js  # In-page Notification → OS notification bridge
-├── security.js       # OS keyring availability check + user warning
-├── updater.js        # Auto-update via electron-updater (download + install on quit)
-├── browser-check.js  # Chromium staleness check (warns if 2+ major versions behind)
-└── constants.js      # Frozen config object (URL, dimensions, paths)
+├── main.js                  # Entry point: app lifecycle, CLI switches, multi-window orchestration
+├── window.js                 # BrowserWindow factory, per-profile partitions, UA spoofing, external links
+├── profiles.js               # Profile metadata store (load, save, create, delete, rename, setDefault)
+├── desktop.js                # Per-profile .desktop file generation and cleanup
+├── profile-dialog.js         # Modal text input dialog (New Profile / Rename)
+├── profile-dialog-preload.js # Preload for dialog — contextBridge, no nodeIntegration
+├── menu.js                   # App menu (File, Profiles, Edit, View)
+├── notifications.js          # In-page Notification → OS notification bridge (rate-limited)
+├── security.js               # OS keyring availability check + user warning
+├── updater.js                # Auto-update via electron-updater (SHA512 verified, install on quit)
+├── browser-check.js          # Chromium staleness check (warns if 2+ major versions behind)
+└── constants.js              # Frozen config object (URL, dimensions, paths)
 build/
-├── afterPack.js      # electron-builder hook: replaces binary with wrapper
-└── whatsuck-wrapper.sh  # Sample wrapper (unused; afterPack generates one)
+├── afterPack.js              # electron-builder hook: replaces binary with wrapper
+└── whatsuck-wrapper.sh       # Sample wrapper (unused; afterPack generates one)
 ```
 
 Each module has a single responsibility and is the only file that imports its private concern. `main.js` orchestrates; it doesn't do work itself.
@@ -170,6 +171,20 @@ WhatsApp Web runs in a `BrowserWindow` like any other page. Its `new Notificatio
 2. **`webContents.on('notification', ...)`** catches the in-page notification event and re-emits it as a native `Notification`, with the app icon, so the desktop shell (Unity, GNOME Shell, KDE) shows it as a real toast.
 
 Click handlers focus the existing window rather than spawning a second one.
+
+### Security architecture
+
+**Electron sandboxing**: every main window runs with `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webviewTag: false`, `webSecurity: true`, and `allowRunningInsecureContent: false`. WhatsApp Web code cannot reach Node.js APIs.
+
+**Profile dialog isolation**: the dialog uses a `preload` script (`profile-dialog-preload.js`) with `contextBridge.exposeInMainWorld` to expose only a single `window.dialog.submit()` function. The renderer has no access to `ipcRenderer`, `require`, or any Node.js API. IPC messages are validated by `webContents.id` to prevent spoofing from other windows.
+
+**Notification rate limiting**: native notifications are throttled to one per second. A compromised page cannot flood the OS notification daemon.
+
+**Update integrity**: `electron-updater` downloads updates over HTTPS and verifies the SHA512 hash of each `.deb` against the `latest-linux.yml` manifest published alongside the GitHub release. A network attacker cannot substitute a different binary.
+
+**Permission allowlist**: the session's `setPermissionRequestHandler` only grants the `notifications` permission. All other permission requests (geolocation, camera, microphone, etc.) are denied.
+
+**External link handling**: only `http:` and `https:` URLs pointing to hosts other than `web.whatsapp.com` are passed to `shell.openExternal`. Non-http protocols and same-origin navigations are never forwarded.
 
 ### How the wrapper script works
 
