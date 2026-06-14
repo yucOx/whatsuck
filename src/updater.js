@@ -36,6 +36,8 @@ function getUpdater() {
 
 /**
  * Run the update flow. Safe to call once on app start.
+ *
+ * @returns {Promise<void>}
  */
 async function checkForUpdates() {
   if (!app.isPackaged) {

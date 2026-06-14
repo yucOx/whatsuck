@@ -36,4 +36,36 @@ module.exports = Object.freeze({
   // (containers, user-quota'd mounts) for Chromium's shared memory
   // segments. Redirects shared memory to /tmp.
   cliSwitches: ['no-sandbox', 'disable-dev-shm-usage'],
+
+  // Profile dialog dimensions
+  dialog: {
+    width: 380,
+    height: 180,
+  },
+
+  // Notification bridge
+  notifications: {
+    // Throttle: min ms between two native notifications. Stops a
+    // compromised page from flooding the OS notification daemon.
+    cooldownMs: 1000,
+  },
+
+  // Browser staleness check
+  browser: {
+    // Warn when bundled Chromium is this many major versions behind
+    // the latest stable Chrome.
+    stalenessThresholdMajor: 2,
+  },
+
+  // Update checker
+  updater: {
+    // Network timeout for the GitHub releases API request.
+    timeoutMs: 8000,
+  },
+
+  // Security: Chromium version check feed
+  security: {
+    chromeVersionsFeed:
+      'https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json',
+  },
 });

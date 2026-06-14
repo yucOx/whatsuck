@@ -97,26 +97,30 @@ function createMainWindow({ profileId = 'default', onClosed } = {}) {
   // Web origin, so internal navigation (e.g. multi-step log-in
   // flows) still works.
 
+  // Treat unparseable URLs as external (do not load in-app, do not
+  // forward to shell.openExternal either — safer default is to drop
+  // them entirely).
   const isExternal = (url) => {
     try {
       const u = new URL(url);
-      if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
-      return u.host !== 'web.whatsapp.com';
+      return (u.protocol === 'http:' || u.protocol === 'https:')
+          && u.host !== 'web.whatsapp.com';
     } catch {
-      return false;
+      return true;
     }
   };
 
   win.webContents.on('will-navigate', (event, url) => {
     if (isExternal(url)) {
       event.preventDefault();
-      shell.openExternal(url);
+      // For unparseable URLs, skip shell.openExternal too.
+      try { shell.openExternal(url); } catch {}
     }
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (isExternal(url)) {
-      shell.openExternal(url);
+      try { shell.openExternal(url); } catch {}
     }
     // Block in-app new windows regardless. WhatsApp Web's
     // target="_blank" is rare and not useful here.

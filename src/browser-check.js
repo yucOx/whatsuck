@@ -21,8 +21,6 @@ const C = require('./constants');
  * Skipped in dev mode.
  */
 
-const STALE_THRESHOLD_MAJOR = 2; // e.g. bundled 130, latest 132 → warn
-
 function bundledMajor() {
   const v = process.versions.chrome || '0.0.0';
   return parseInt(v.split('.')[0], 10) || 0;
@@ -31,7 +29,7 @@ function bundledMajor() {
 function fetchLatestChromeMajor() {
   return new Promise((resolve) => {
     const req = https.get(
-      'https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json',
+      C.security.chromeVersionsFeed,
       { timeout: 6000 },
       (res) => {
         let body = '';
@@ -56,6 +54,13 @@ function fetchLatestChromeMajor() {
   });
 }
 
+/**
+ * Check whether the bundled Chromium is significantly behind the
+ * latest stable Chrome, and notify the user if so. Runs once on
+ * startup. Silent on network errors.
+ *
+ * @returns {Promise<void>}
+ */
 async function checkBrowserStaleness() {
   if (!app.isPackaged) return;
 
@@ -65,7 +70,7 @@ async function checkBrowserStaleness() {
   const latest = await fetchLatestChromeMajor();
   if (!latest) return; // Silent on network issues.
 
-  if (latest - bundled >= STALE_THRESHOLD_MAJOR) {
+  if (latest - bundled >= C.browser.stalenessThresholdMajor) {
     const parent =
       BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
     const choice = dialog.showMessageBoxSync(parent, {

@@ -1,7 +1,6 @@
 'use strict';
 
 const { Notification, app } = require('electron');
-const path = require('path');
 const C = require('./constants');
 
 /**
@@ -20,6 +19,9 @@ const C = require('./constants');
  *
  * Clicking a notification focuses the main window. This matches
  * user expectations from a native chat app.
+ *
+ * The notification listener is removed on window close to avoid
+ * accumulating listeners across window lifecycles.
  */
 function attachNotificationBridge(mainWindow) {
   // Auto-grant the `notifications` permission for the WhatsApp origin.
@@ -43,20 +45,26 @@ function attachNotificationBridge(mainWindow) {
     return permission === 'notifications';
   });
 
-// Bridge in-page Notification → native Notification.
+  // Bridge in-page Notification → native Notification.
   // Rate-limit: a compromised page could otherwise spam the
   // notification daemon. One notification per second is generous
   // for a chat app and prevents DoS.
   let lastNotificationTime = 0;
-  const NOTIFICATION_COOLDOWN_MS = 1000;
-
-  mainWindow.webContents.on('notification', (_event, payload) => {
+  const onNotification = (_event, payload) => {
     const now = Date.now();
-    if (now - lastNotificationTime < NOTIFICATION_COOLDOWN_MS) {
+    if (now - lastNotificationTime < C.notifications.cooldownMs) {
       return; // throttled
     }
     lastNotificationTime = now;
     showNativeNotification(payload, mainWindow);
+  };
+
+  mainWindow.webContents.on('notification', onNotification);
+
+  // Clean up the listener when the window is closed so we don't
+  // accumulate listeners across window lifecycles.
+  mainWindow.once('closed', () => {
+    mainWindow.webContents.removeListener('notification', onNotification);
   });
 }
 

@@ -52,13 +52,19 @@ function installAppMenu({ currentWindow, openProfile } = {}) {
               confirmLabel: 'Create',
             });
             if (!name) return;
-            const profile = createProfile(name);
-            // Also generate a .desktop file if the user is on a packaged app.
-            if (app.isPackaged) {
-              generateDesktopFile(profile, app.getPath('exe'));
+            try {
+              const profile = createProfile(name);
+              if (app.isPackaged) {
+                generateDesktopFile(profile, app.getPath('exe'));
+              }
+              rebuildMenu();
+              if (openProfile) openProfile(profile.id);
+            } catch (err) {
+              dialog.showErrorBox(
+                'Could not create profile',
+                `${err.message}\n\nTry again with a different name.`
+              );
             }
-            rebuildMenu();
-            if (openProfile) openProfile(profile.id);
           },
         },
         {

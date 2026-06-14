@@ -2,6 +2,7 @@
 
 const { BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const C = require('./constants');
 
 /**
  * Modal text input dialog.
@@ -17,8 +18,8 @@ const path = require('path');
 function promptInput(parent, { title, label, defaultValue = '', confirmLabel = 'OK' } = {}) {
   return new Promise((resolve) => {
     const dialog = new BrowserWindow({
-      width: 380,
-      height: 180,
+      width: C.dialog.width,
+      height: C.dialog.height,
       parent: parent || undefined,
       modal: true,
       resizable: false,

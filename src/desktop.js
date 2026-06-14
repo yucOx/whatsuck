@@ -25,6 +25,12 @@ function desktopFilePath(profileId) {
   return path.join(desktopDir(), `whatsuck-${profileId}.desktop`);
 }
 
+/**
+ * Write a .desktop file for a pinned profile.
+ *
+ * @param {{id: string, name: string}} profile - Profile to pin.
+ * @param {string} execPath - Absolute path to the whatsuck binary.
+ */
 function generateDesktopFile(profile, execPath) {
   if (!app.isPackaged) return;
 
@@ -50,6 +56,11 @@ function generateDesktopFile(profile, execPath) {
   fs.writeFileSync(desktopFilePath(profile.id), contents, { mode: 0o644 });
 }
 
+/**
+ * Remove a pinned profile's .desktop file.
+ *
+ * @param {{id: string}} profile - Profile to unpin.
+ */
 function removeDesktopFile(profile) {
   const p = desktopFilePath(profile.id);
   if (fs.existsSync(p)) {
@@ -63,6 +74,13 @@ function removeDesktopFile(profile) {
  * - Removes stale files for profiles that no longer exist
  *   or have been unpinned.
  * Called once on startup.
+ */
+/**
+ * Reconcile on-disk .desktop files with the profiles list.
+ * Called once on startup.
+ *
+ * @param {Array} profiles - Current profiles array.
+ * @param {string} execPath - Absolute path to the whatsuck binary.
  */
 function syncDesktopFiles(profiles, execPath) {
   if (!app.isPackaged) return;
