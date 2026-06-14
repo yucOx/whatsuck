@@ -32,11 +32,22 @@ exports.default = async function afterPack(context) {
   // Move the real binary aside.
   fs.renameSync(binaryPath, renamedPath);
 
+  // Build the Chrome User-Agent. process.versions.chrome returns
+  // the full version like "130.0.6723.69". Chrome UA format is
+  // Chrome/Major.0.Build.Patch, but for the UA gate all that
+  // matters is the major version being >= 85.
+  const chromeVersion = process.versions.chrome || '130.0.0.0';
+  const major = chromeVersion.split('.')[0];
+  const chromeUA = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Safari/537.36`;
+
   // Write the wrapper script in place of the original binary.
   // --no-sandbox is passed as a CLI arg because the SUID sandbox
   // check happens before app.commandLine.appendSwitch takes effect.
   // --disable-dev-shm-usage redirects /dev/shm to TMPDIR for the
   // same quota reason.
+  // --user-agent is set as a Chromium CLI flag (not via JS) because
+  // WhatsApp Web's UA gate runs before navigator.userAgent is
+  // overridden by webContents.setUserAgent.
   //
   // We use readlink -f to resolve any symlinks (e.g. when launched
   // via /usr/bin/whatsuck which is a symlink to /opt/Whatsuck/whatsuck).
@@ -49,7 +60,7 @@ exports.default = async function afterPack(context) {
     'mkdir -p "$WHATSUCK_HOME/tmp"',
     'export TMPDIR="$WHATSUCK_HOME/tmp"',
     `SELF="$(readlink -f "$0")"`,
-    `exec "$(dirname "$SELF")/whatsuck.bin" --no-sandbox --disable-dev-shm-usage "$@"`,
+    `exec "$(dirname "$SELF")/whatsuck.bin" --no-sandbox --disable-dev-shm-usage --user-agent="${chromeUA}" "$@"`,
     '',
   ].join('\n');
 
