@@ -8,6 +8,7 @@ const { installAppMenu } = require('./menu');
 const { attachNotificationBridge } = require('./notifications');
 const { checkKeyringAndWarn } = require('./security');
 const { checkForUpdates } = require('./updater');
+const { checkBrowserStaleness } = require('./browser-check');
 const { loadProfiles, getActiveProfileId } = require('./profiles');
 const { syncDesktopFiles } = require('./desktop');
 
@@ -83,6 +84,9 @@ function bootstrap() {
 
   // Auto-update runs in the background, no window parent needed.
   checkForUpdates();
+
+  // Check if the bundled Chromium is too far behind stable Chrome.
+  checkBrowserStaleness();
 
   // Reconcile pinned .desktop files with current profile list.
   syncDesktopFiles(loadProfiles(), app.getPath('exe'));
