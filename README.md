@@ -1,203 +1,194 @@
-# Whatsuck
+# Whatsuck 🟢
 
-A native Ubuntu desktop client for [WhatsApp Web](https://web.whatsapp.com). Wraps the web app in an Electron shell, packages it as a `.deb`, and integrates with the OS so it shows up in the application menu, in the dock/taskbar, and — for incoming messages — as a real notification with the app's own icon.
+> **WhatsApp Web as a native Ubuntu desktop app.**
+> Multiple accounts at once, each fully isolated. Notifications, desktop shortcuts, auto-update — all included.
+
+[![GitHub release](https://img.shields.io/github/v/release/yucOx/whatsuck)](https://github.com/yucOx/whatsuck/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: Ubuntu](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Debian-E95420?logo=ubuntu)](https://ubuntu.com)
+[![Electron: 35](https://img.shields.io/badge/electron-35-47848F?logo=electron)](https://www.electronjs.org/)
+
+**Whatsuck** wraps [WhatsApp Web](https://web.whatsapp.com) in an Electron shell, packages it as a `.deb`, and integrates deeply with the OS — real notifications for incoming messages, multiple WhatsApp accounts side by side, and desktop shortcuts for each profile.
+
+**[🇹🇷 Türkçe dokümantasyon için tıklayın](README.tr.md)**
+
+---
 
 ## Features
 
-- **Multi-profile** – Create, rename, and delete profiles from the Profiles menu. Each profile gets its own isolated session (cookies, localStorage, IndexedDB). Run multiple profiles side by side in separate windows.
-- **Pin to desktop** – Any profile can be pinned to the application menu. A `.desktop` file is generated so the profile appears as "Whatsuck (Work)" in GNOME/KDE and can be launched directly.
-- **Default profile** – Choose which profile opens when you launch Whatsuck without arguments. `whatsuck --profile=work` opens a specific profile from the command line.
-- **Native notifications** – Incoming messages appear in the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon. Clicking a notification focuses the main window.
-- **Auto-update** – On startup the app checks GitHub for a new release, downloads it in the background, and prompts to restart. Updates install automatically on next quit. No manual `.deb` downloading needed after the first install.
-- **Browser staleness warning** – Chromium (the rendering engine inside Electron) does not auto-update between app releases. If the bundled version falls 2+ major versions behind the latest stable Chrome, the app shows a one-time warning with a link to the releases page.
-- **External links open in your browser** – Links in WhatsApp messages open in the OS default browser (Firefox, Chrome, etc.), not inside the app window.
-- **OS keyring integration** – Session cookies are encrypted with your system keyring (libsecret / GNOME Keyring / KWallet) when available. You'll get a one-time warning at startup if no keyring is detected.
-- **Real `.deb` package** – Install with `dpkg`, uninstall with `apt remove`. Registers a `.desktop` file so the app appears in your app menu.
-- **Auto-hide menu bar** – The app menu is hidden by default; press `Alt` to reveal it. `F12` opens DevTools, `Ctrl+R` reloads, `Ctrl+N` opens a new window for the current profile.
+### 💬 Built for WhatsApp
 
-## Multi-profile
+- **Real notifications** — incoming messages hit the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon
+- **Multiple profiles** — run two or more WhatsApp accounts side by side, each in its own isolated session
+- **Pin to desktop** — any profile can appear in the GNOME/KDE application menu as "Whatsuck (Work)"
+- **Default profile** — choose which profile opens on bare launch; `whatsuck --profile=work` for a specific one
 
-Each profile is a fully isolated WhatsApp session:
+### 🔐 Security
 
-- **Cookies** – separate session token per profile
-- **IndexedDB / LocalStorage** – separate cache, contacts, message history
-- **HTTP cache** – separate network cache
+- **Auto-update** — checks GitHub for new releases, downloads in the background, installs on restart
+- **OS keyring** — session cookies encrypted with GNOME Keyring / KWallet when available
+- **Strict sandboxing** — `contextIsolation`, `sandbox`, `webSecurity=true`, no `nodeIntegration`, no `webviewTag`
+- **Isolated dialogs** — profile input uses a preload script + `contextBridge`; renderer has zero Node.js access
+- **SHA512-verified updates** — downloads are hash-checked against the release manifest
+- **External links** — URLs open in your default browser, not inside the app
 
-Profile data is stored under `~/.config/whatsuck/`:
+### ⚙️ Technical
+
+- **Menu bar always visible** — toggle from View menu; Alt shows it when hidden
+- **Keyboard shortcuts** — `Ctrl+R` reload, `Ctrl+N` new window, `F12` DevTools
+- **Browser staleness warning** — alerts if bundled Chromium is 2+ major versions behind stable Chrome
+- **~85 MB `.deb`** — self-contained, no external runtime needed
+
+---
+
+## Install
+
+### One-command install (recommended)
+
+No development tools required on your machine:
+
+```bash
+git clone https://github.com/yucOx/whatsuck.git
+cd whatsuck
+./setup.sh
+```
+
+The setup script:
+- ✅ Checks for `git`, `node`, `npm`, `dpkg`
+- ✅ Installs npm dependencies
+- ✅ Builds the `.deb` (downloads Electron ~150 MB, one-time)
+- ✅ Installs system-wide via `sudo dpkg -i`
+- ✅ Whatsuck appears in your application menu
+
+### Manual install
+
+Download the latest `.deb` from [Releases](https://github.com/yucOx/whatsuck/releases), then:
+
+```bash
+sudo dpkg -i whatsuck_1.0.0_amd64.deb
+sudo apt-get install -f   # resolve missing runtime deps
+```
+
+### Uninstall
+
+```bash
+./setup.sh --uninstall     # removes app + session data + pinned shortcuts
+```
+
+or manually:
+
+```bash
+sudo apt remove whatsuck
+rm -rf ~/.config/whatsuck                              # session data
+rm ~/.local/share/applications/whatsuck-*.desktop      # pinned shortcuts
+```
+
+---
+
+## Multiple WhatsApp Accounts
+
+Each profile is a fully isolated WhatsApp session — separate cookies, localStorage, IndexedDB, HTTP cache. Log into your personal number in one window, your work number in another.
+
+### Profiles menu
+
+Click **Profiles** in the menu bar:
+
+- **New Profile…** — creates a new session and opens a fresh WhatsApp window
+- **Rename…** — changes the display name of the current profile
+- **Delete** — permanently erases the profile's session data (disabled if only one remains)
+- **Set as Default** — which profile opens on bare launch
+- **Pin to Desktop** — adds a `.desktop` entry so the profile appears in the application launcher
+
+### CLI
+
+```bash
+whatsuck                       # Opens the default profile
+whatsuck --profile=work        # Opens the "work" profile
+```
+
+### How it works
+
+Each profile runs in its own Electron partition (`persist:<id>`), stored under `~/.config/whatsuck/Partitions/<id>/`. The `default` profile uses `session.defaultSession` for backward compatibility — existing users keep their session after upgrading.
 
 ```
 ~/.config/whatsuck/
-├── profiles.json              # Profile metadata (name, isDefault, isPinned)
+├── profiles.json              # Profile metadata
 ├── Cookies                   # Default profile cookies
 ├── Local Storage/            # Default profile storage
 ├── IndexedDB/                # Default profile database
 └── Partitions/
     ├── work/
-    │   ├── Cookies           # "Work" profile cookies
-    │   ├── Local Storage/
-    │   └── IndexedDB/
+    │   ├── Cookies
+    │   └── Local Storage/
     └── side-hustle/
         └── ...
 ```
 
-The `default` profile uses `session.defaultSession` for backward compatibility — existing single-profile users keep their session data after upgrade.
-
-### Profiles menu
-
-Press `Alt` to reveal the menu bar, then click **Profiles**:
-
-- **Profile list** – radio buttons; clicking a profile opens it in a new window
-- **New Profile…** – prompts for a name, creates an isolated session
-- **Rename…** – renames the current profile's display name
-- **Delete** – erases the profile's session data permanently (disabled if only one profile remains)
-- **Set as Default** – which profile opens on bare launch
-- **Pin to Desktop** – creates a `.desktop` entry so the profile appears in the application launcher as "Whatsuck (Work)"
-
-### CLI
-
-```bash
-whatsuck                     # Opens the default profile
-whatsuck --profile=work      # Opens the "work" profile
-```
+---
 
 ## Security & Privacy
 
-What's stored on disk:
+### What's on disk
 
-- **Cookies** – Your WhatsApp session token. Encrypted with the OS keyring when available.
-- **IndexedDB / LocalStorage** – Cached contact list, recent message metadata, UI state. Stored in plain LevelDB/SQLite files.
-- **App preferences** – Window position, notification settings, etc.
+| Data | Encryption |
+| --- | --- |
+| Cookies (session token) | OS keyring when available |
+| IndexedDB / LocalStorage | Plain text (LevelDB/SQLite) |
+| App preferences | Plain text |
 
-Who can read this:
+### Who can read it
 
 | Access level | Risk |
 | --- | --- |
-| You (your user) | Full read/write — your account |
-| Other users on the same machine | Protected by `0700`/`0600` Unix permissions |
+| You (your user) | Full access |
+| Other users on same machine | Protected by `0700`/`0600` Unix permissions |
 | `sudo` / root | Can read everything |
-| Stolen disk (without FDE) | Can read everything |
-| Stolen disk (with LUKS / eCryptfs) | Protected by disk encryption |
+| Stolen disk (no FDE) | Can read everything |
+| Stolen disk (LUKS) | Protected by full-disk encryption |
 
-**Recommended**: enable full-disk encryption (Ubuntu installer offers this). The OS-keyring integration is a defense-in-depth measure, not a replacement for FDE.
+**Recommended**: enable full-disk encryption. The OS keyring check warns you at first launch if `libsecret` / `gnome-keyring` is missing.
 
-The keyring check on first launch will warn you if `libsecret` / `gnome-keyring` / `kwallet` is missing, with a one-click link to install instructions. The app runs either way — the warning is informational.
+### Architecture
 
-## Browser engine updates
+- Every main window: `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webviewTag: false`
+- Profile dialog: preload + `contextBridge` — renderer cannot access Node.js
+- Notifications: rate-limited to 1/second (prevents DoS)
+- Updates: HTTPS + SHA512 hash verification
+- Permissions: only `notifications` granted; all others denied
+- External links: only `http`/`https` to non-WhatsApp hosts are forwarded to `shell.openExternal`
 
-Electron bundles its own Chromium build. Unlike a normal Chrome install, the bundled browser does **not** auto-update — it only updates when the maintainer bumps the Electron version and publishes a new app release. The auto-update mechanism (above) takes care of that: when a new release ships a newer Chromium, every user gets it within a session or two of next launch.
+---
 
-If the bundled Chromium falls 2+ major versions behind the latest stable Chrome, the app shows a one-time notice at startup with a link to the releases page. This is informational; it doesn't block the app from running.
-
-## Install
-
-Download the latest release, or build it yourself (see below), then:
-
-```bash
-sudo dpkg -i dist/whatsuck_1.0.0_amd64.deb
-sudo apt-get install -f   # resolve any missing runtime deps
-```
-
-After install, search for **Whatsuck** in your application menu.
-
-## Uninstall
-
-```bash
-sudo apt remove whatsuck
-```
-
-Wipes the `.deb` install but leaves your session data in `~/.config/whatsuck/`. To wipe that too:
-
-```bash
-rm -rf ~/.config/whatsuck
-```
-
-Pinned profile `.desktop` files in `~/.local/share/applications/` are not removed by `apt remove`. To clean them up:
-
-```bash
-rm ~/.local/share/applications/whatsuck-*.desktop
-```
-
-## Develop
+## Developing
 
 ```bash
 npm install
-npm start
+npm start        # dev mode (auto-update and keyring warnings skipped)
+npm run build    # produces dist/whatsuck_1.0.0_amd64.deb
 ```
 
-This launches the app in dev mode with the same code path as the packaged build. The update checker is skipped in dev mode.
-
-## Build
-
-```bash
-npm run build
-```
-
-Produces `dist/whatsuck_1.0.0_amd64.deb`. Build size is ~85 MB because the whole Electron runtime is bundled.
-
-## Architecture
+### Module map
 
 ```
 src/
-├── main.js                  # Entry point: app lifecycle, CLI switches, multi-window orchestration
-├── window.js                 # BrowserWindow factory, per-profile partitions, UA spoofing, external links
-├── profiles.js               # Profile metadata store (load, save, create, delete, rename, setDefault)
-├── desktop.js                # Per-profile .desktop file generation and cleanup
-├── profile-dialog.js         # Modal text input dialog (New Profile / Rename)
+├── main.js                  # Entry point, lifecycle, multi-window orchestration
+├── window.js                 # BrowserWindow factory, partitions, UA spoofing, external links
+├── profiles.js               # Profile metadata store
+├── desktop.js                # Per-profile .desktop file management
+├── profile-dialog.js         # Modal text input dialog
 ├── profile-dialog-preload.js # Preload for dialog — contextBridge, no nodeIntegration
 ├── menu.js                   # App menu (File, Profiles, Edit, View)
-├── notifications.js          # In-page Notification → OS notification bridge (rate-limited)
-├── security.js               # OS keyring availability check + user warning
-├── updater.js                # Auto-update via electron-updater (SHA512 verified, install on quit)
-├── browser-check.js          # Chromium staleness check (warns if 2+ major versions behind)
-└── constants.js              # Frozen config object (URL, dimensions, paths)
+├── notifications.js          # In-page → OS notification bridge (rate-limited)
+├── security.js               # OS keyring check + user warning
+├── updater.js                # Auto-update via electron-updater (SHA512 verified)
+├── browser-check.js          # Chromium staleness warning
+└── constants.js              # Frozen config object
 build/
-├── afterPack.js              # electron-builder hook: replaces binary with wrapper
-└── whatsuck-wrapper.sh       # Sample wrapper (unused; afterPack generates one)
+└── afterPack.js              # electron-builder hook: wrapper script generator
 ```
 
-Each module has a single responsibility and is the only file that imports its private concern. `main.js` orchestrates; it doesn't do work itself.
-
-### How profile isolation works
-
-Each profile gets a `session.fromPartition('persist:<id>')`. Electron stores the partition data in a separate directory under `~/.config/whatsuck/Partitions/<id>/`. The `default` profile uses `session.defaultSession` for backward compatibility — no partition key in `webPreferences`.
-
-When you click a profile in the menu, `openProfile(id)` checks if a window already exists for that profile. If so, it focuses the existing window. If not, it creates a new `BrowserWindow` with the partition.
-
-### How the notification bridge works
-
-WhatsApp Web runs in a `BrowserWindow` like any other page. Its `new Notification(...)` calls don't reach the OS automatically. `src/notifications.js` does two things on the window's `webContents`:
-
-1. **`setPermissionRequestHandler`** auto-grants the `notifications` permission, so the page can call `Notification.requestPermission()` without prompting the user through the in-page flow.
-2. **`webContents.on('notification', ...)`** catches the in-page notification event and re-emits it as a native `Notification`, with the app icon, so the desktop shell (Unity, GNOME Shell, KDE) shows it as a real toast.
-
-Click handlers focus the existing window rather than spawning a second one.
-
-### Security architecture
-
-**Electron sandboxing**: every main window runs with `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webviewTag: false`, `webSecurity: true`, and `allowRunningInsecureContent: false`. WhatsApp Web code cannot reach Node.js APIs.
-
-**Profile dialog isolation**: the dialog uses a `preload` script (`profile-dialog-preload.js`) with `contextBridge.exposeInMainWorld` to expose only a single `window.dialog.submit()` function. The renderer has no access to `ipcRenderer`, `require`, or any Node.js API. IPC messages are validated by `webContents.id` to prevent spoofing from other windows.
-
-**Notification rate limiting**: native notifications are throttled to one per second. A compromised page cannot flood the OS notification daemon.
-
-**Update integrity**: `electron-updater` downloads updates over HTTPS and verifies the SHA512 hash of each `.deb` against the `latest-linux.yml` manifest published alongside the GitHub release. A network attacker cannot substitute a different binary.
-
-**Permission allowlist**: the session's `setPermissionRequestHandler` only grants the `notifications` permission. All other permission requests (geolocation, camera, microphone, etc.) are denied.
-
-**External link handling**: only `http:` and `https:` URLs pointing to hosts other than `web.whatsapp.com` are passed to `shell.openExternal`. Non-http protocols and same-origin navigations are never forwarded.
-
-### How the wrapper script works
-
-`build/afterPack.js` runs after `electron-builder` packages the app. It renames the real Electron binary to `whatsuck.bin` and writes a shell script in its place. The script:
-
-1. Creates `~/.cache/whatsuck/tmp` if missing
-2. Sets `TMPDIR` to that directory (bypasses `/dev/shm` and `/tmp` usrquota issues on some Ubuntu installs)
-3. Passes `--no-sandbox`, `--disable-dev-shm-usage`, and a Chrome `--user-agent` as CLI flags (must arrive before any Chromium code runs)
-4. Resolves any symlinks via `readlink -f` (the `.deb` install creates `/usr/bin/whatsuck` → `/opt/Whatsuck/whatsuck`)
-5. `exec`s the real binary
-
-The Node-side `app.commandLine.appendSwitch` calls in `src/main.js` still run as a backup, but the CLI flags are the ones that actually take effect for the first-navigation and child-process checks.
+---
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
