@@ -4,12 +4,59 @@ A native Ubuntu desktop client for [WhatsApp Web](https://web.whatsapp.com). Wra
 
 ## Features
 
+- **Multi-profile** – Create, rename, and delete profiles from the Profiles menu. Each profile gets its own isolated session (cookies, localStorage, IndexedDB). Run multiple profiles side by side in separate windows.
+- **Pin to desktop** – Any profile can be pinned to the application menu. A `.desktop` file is generated so the profile appears as "Whatsuck (Work)" in GNOME/KDE and can be launched directly.
+- **Default profile** – Choose which profile opens when you launch Whatsuck without arguments. `whatsuck --profile=work` opens a specific profile from the command line.
 - **Native notifications** – Incoming messages appear in the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon. Clicking a notification focuses the main window.
 - **OS keyring integration** – Session cookies are encrypted with your system keyring (libsecret / GNOME Keyring / KWallet) when available. You'll get a one-time warning at startup if no keyring is detected.
 - **Update checker** – On startup the app queries GitHub releases and notifies you when a new version is available. Skipped during `npm start` to avoid noise.
 - **Real `.deb` package** – Install with `dpkg`, uninstall with `apt remove`. Registers a `.desktop` file so the app appears in your app menu.
-- **Auto-hide menu bar** – The app menu is hidden by default; press `Alt` to reveal it. `F12` opens DevTools, `Ctrl+R` reloads.
-- **Small surface** – No custom UI, no analytics, no telemetry. The wrapper does four things and stops: load URL, bridge notifications, warn about keyring, check for updates.
+- **Auto-hide menu bar** – The app menu is hidden by default; press `Alt` to reveal it. `F12` opens DevTools, `Ctrl+R` reloads, `Ctrl+N` opens a new window for the current profile.
+
+## Multi-profile
+
+Each profile is a fully isolated WhatsApp session:
+
+- **Cookies** – separate session token per profile
+- **IndexedDB / LocalStorage** – separate cache, contacts, message history
+- **HTTP cache** – separate network cache
+
+Profile data is stored under `~/.config/whatsuck/`:
+
+```
+~/.config/whatsuck/
+├── profiles.json              # Profile metadata (name, isDefault, isPinned)
+├── Cookies                   # Default profile cookies
+├── Local Storage/            # Default profile storage
+├── IndexedDB/                # Default profile database
+└── Partitions/
+    ├── work/
+    │   ├── Cookies           # "Work" profile cookies
+    │   ├── Local Storage/
+    │   └── IndexedDB/
+    └── side-hustle/
+        └── ...
+```
+
+The `default` profile uses `session.defaultSession` for backward compatibility — existing single-profile users keep their session data after upgrade.
+
+### Profiles menu
+
+Press `Alt` to reveal the menu bar, then click **Profiles**:
+
+- **Profile list** – radio buttons; clicking a profile opens it in a new window
+- **New Profile…** – prompts for a name, creates an isolated session
+- **Rename…** – renames the current profile's display name
+- **Delete** – erases the profile's session data permanently (disabled if only one profile remains)
+- **Set as Default** – which profile opens on bare launch
+- **Pin to Desktop** – creates a `.desktop` entry so the profile appears in the application launcher as "Whatsuck (Work)"
+
+### CLI
+
+```bash
+whatsuck                     # Opens the default profile
+whatsuck --profile=work      # Opens the "work" profile
+```
 
 ## Security & Privacy
 
@@ -56,6 +103,12 @@ Wipes the `.deb` install but leaves your session data in `~/.config/whatsuck/`. 
 rm -rf ~/.config/whatsuck
 ```
 
+Pinned profile `.desktop` files in `~/.local/share/applications/` are not removed by `apt remove`. To clean them up:
+
+```bash
+rm ~/.local/share/applications/whatsuck-*.desktop
+```
+
 ## Develop
 
 ```bash
@@ -77,12 +130,15 @@ Produces `dist/whatsuck_1.0.0_amd64.deb`. Build size is ~85 MB because the whole
 
 ```
 src/
-├── main.js           # Entry point: app lifecycle, CLI switches, orchestration
-├── window.js         # BrowserWindow factory for WhatsApp Web, UA spoofing
+├── main.js           # Entry point: app lifecycle, CLI switches, multi-window orchestration
+├── window.js         # BrowserWindow factory, per-profile partitions, UA spoofing
+├── profiles.js       # Profile metadata store (load, save, create, delete, rename, setDefault)
+├── desktop.js        # Per-profile .desktop file generation and cleanup
+├── profile-dialog.js # Modal text input dialog (New Profile / Rename)
+├── menu.js           # App menu (File, Profiles, Edit, View)
 ├── notifications.js  # In-page Notification → OS notification bridge
 ├── security.js       # OS keyring availability check + user warning
 ├── updater.js        # GitHub releases check + update dialog
-├── menu.js           # App menu template (Reload, DevTools, Edit)
 └── constants.js      # Frozen config object (URL, dimensions, paths)
 build/
 ├── afterPack.js      # electron-builder hook: replaces binary with wrapper
@@ -90,6 +146,12 @@ build/
 ```
 
 Each module has a single responsibility and is the only file that imports its private concern. `main.js` orchestrates; it doesn't do work itself.
+
+### How profile isolation works
+
+Each profile gets a `session.fromPartition('persist:<id>')`. Electron stores the partition data in a separate directory under `~/.config/whatsuck/Partitions/<id>/`. The `default` profile uses `session.defaultSession` for backward compatibility — no partition key in `webPreferences`.
+
+When you click a profile in the menu, `openProfile(id)` checks if a window already exists for that profile. If so, it focuses the existing window. If not, it creates a new `BrowserWindow` with the partition.
 
 ### How the notification bridge works
 
