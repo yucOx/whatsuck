@@ -11,6 +11,7 @@ const {
 } = require('./profiles');
 const { generateDesktopFile, removeDesktopFile } = require('./desktop');
 const { promptInput } = require('./profile-dialog');
+const { loadSettings, saveSettings } = require('./settings');
 
 /**
  * Build and install the application menu with a Profiles section.
@@ -198,6 +199,33 @@ function installAppMenu({ currentWindow, openProfile } = {}) {
             label: 'Toggle Developer Tools',
             accelerator: 'F12',
             click: () => win && win.webContents.toggleDevTools(),
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        submenu: [
+          {
+            label: 'Notifications Enabled',
+            type: 'checkbox',
+            checked: loadSettings().notifications.enabled,
+            click: (item) => {
+              const s = loadSettings();
+              s.notifications.enabled = item.checked;
+              saveSettings(s);
+            },
+          },
+          {
+            label: 'Notification Sound',
+            type: 'checkbox',
+            checked: loadSettings().notifications.sound,
+            enabled: loadSettings().notifications.enabled,
+            click: (item) => {
+              const s = loadSettings();
+              s.notifications.sound = item.checked;
+              saveSettings(s);
+              rebuildMenu();
+            },
           },
         ],
       },
