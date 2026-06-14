@@ -64,7 +64,14 @@ Tarayıcı sekmesinde WhatsApp Web kullanmak işe yarar — ama:
 
 ### Kolay yol (önerilir)
 
-Yazılım bilmenize gerek yok. Sadece şunu çalıştırın:
+`git`, `node` veya `npm` gerekmez — sadece `curl` veya `wget`:
+
+```bash
+# İndir ve çalıştır
+curl -sL https://raw.githubusercontent.com/yucOx/whatsuck/main/setup.sh | bash -
+```
+
+Veya klonla ve yerel çalıştır:
 
 ```bash
 git clone https://github.com/yucOx/whatsuck.git
@@ -73,9 +80,8 @@ cd whatsuck
 ```
 
 Kurulum scripti sizin için her şeyi yapar:
-- ✅ `git`, `node`, `npm` kurulu mu kontrol eder (değilse ne kurmanız gerektiğini söyler)
-- ✅ npm paketlerini yükler
-- ✅ `.deb` paketini derler
+- ✅ `curl`/`wget` ve `dpkg` kurulu mu kontrol eder
+- ✅ GitHub releases'tan en son `.deb` dosyasını indirir
 - ✅ Sisteminize kurar
 - ✅ Whatsuck uygulama menüsünde görünür
 

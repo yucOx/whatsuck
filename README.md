@@ -45,7 +45,14 @@
 
 ### One-command install (recommended)
 
-No development tools required on your machine:
+No git, node, or npm needed — just `curl` or `wget`:
+
+```bash
+# Download and run
+curl -sL https://raw.githubusercontent.com/yucOx/whatsuck/main/setup.sh | bash -
+```
+
+Or clone and run locally:
 
 ```bash
 git clone https://github.com/yucOx/whatsuck.git
@@ -54,9 +61,8 @@ cd whatsuck
 ```
 
 The setup script:
-- ✅ Checks for `git`, `node`, `npm`, `dpkg`
-- ✅ Installs npm dependencies
-- ✅ Builds the `.deb` (downloads Electron ~150 MB, one-time)
+- ✅ Checks for `curl`/`wget` and `dpkg`
+- ✅ Downloads the latest `.deb` from GitHub releases
 - ✅ Installs system-wide via `sudo dpkg -i`
 - ✅ Whatsuck appears in your application menu
 

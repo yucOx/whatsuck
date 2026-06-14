@@ -1,30 +1,30 @@
 #!/bin/bash
 # Whatsuck setup script
 #
-# Clones the repository, builds the .deb, and installs it on the
-# current Ubuntu/Debian system. Designed for first-time users.
+# Downloads the latest .deb from GitHub releases and installs it.
+# No git, node, or npm needed — just curl/wget and dpkg.
 #
 # Usage:
-#   ./setup.sh
-#   ./setup.sh --uninstall
-#   ./setup.sh --rebuild
+#   ./setup.sh              # Download latest release and install
+#   ./setup.sh --uninstall  # Remove Whatsuck (interactive)
 #
-# Requirements: git, node 18+, npm, dpkg, sudo.
+# Requirements: curl or wget, dpkg, sudo.
 set -euo pipefail
 
-REPO_URL="https://github.com/yucOx/whatsuck.git"
-PROJECT_DIR="whatsuck"
+REPO="yucOx/whatsuck"
 APP_ID="com.whatsuck.app"
-DEB_FILE="dist/whatsuck_1.0.0_amd64.deb"
+RELEASES_API="https://api.github.com/repos/${REPO}/releases/latest"
+TMPDIR_SETUP="/tmp/whatsuck-setup-$$"
 
 bold() { printf "\033[1m%s\033[0m\n" "$*"; }
 info() { printf "  \033[34m→\033[0m %s\n" "$*"; }
 ok()   { printf "  \033[32m✓\033[0m %s\n" "$*"; }
 err()  { printf "  \033[31m✗\033[0m %s\n" "$*" >&2; }
 
+cleanup() { rm -rf "$TMPDIR_SETUP" 2>/dev/null || true; }
+trap cleanup EXIT
+
 # ---- Uninstall path ----
-# Forwards to uninstall.sh which asks the user interactively
-# whether to delete session data, pinned shortcuts, etc.
 if [[ "${1:-}" == "--uninstall" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   if [[ -x "$SCRIPT_DIR/uninstall.sh" ]]; then
@@ -47,77 +47,68 @@ need() {
 }
 
 info "Checking prerequisites"
-need git
-need node
-need npm
 need dpkg
-ok "All prerequisites present"
+need sudo
 
-# Check Node version (need 18+ for electron-builder 26).
-NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
-if (( NODE_MAJOR < 18 )); then
-  err "Node 18+ required (found v$(node -v))"
+# Need curl or wget for downloading.
+if command -v curl >/dev/null 2>&1; then
+  DL="curl -sL"
+elif command -v wget >/dev/null 2>&1; then
+  DL="wget -qO-"
+else
+  err "Missing required tool: curl or wget"
+  err "Install with: sudo apt install curl"
   exit 1
 fi
-ok "Node $(node -v)"
+ok "All prerequisites present"
 
-# ---- Clone or refresh ----
-if [[ -d "$PROJECT_DIR" ]]; then
-  info "Found existing checkout"
-  cd "$PROJECT_DIR"
-  if [[ "${1:-}" == "--rebuild" ]] || [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
-    info "Pulling latest changes"
-    git pull --rebase --autostash
-    ok "Updated to latest"
-  else
-    info "Working tree clean and no --rebuild; keeping current code"
-  fi
-else
-  info "Cloning $REPO_URL"
-  git clone --depth 1 "$REPO_URL" "$PROJECT_DIR"
-  cd "$PROJECT_DIR"
-  ok "Cloned"
+# ---- Find latest release ----
+info "Checking for the latest release"
+mkdir -p "$TMPDIR_SETUP"
+
+RELEASE_JSON="$TMPDIR_SETUP/release.json"
+if ! $DL "$RELEASES_API" -o "$RELEASE_JSON" 2>/dev/null; then
+  err "Could not reach GitHub releases API"
+  err "Check your internet connection and try again"
+  exit 1
 fi
 
-# ---- Install npm deps ----
-if [[ ! -d node_modules ]]; then
-  info "Installing npm dependencies"
-  npm install --no-audit --no-fund
-  ok "npm install"
-else
-  info "node_modules already present, skipping"
+# Extract the .deb download URL from the release JSON.
+# Works with basic grep/sed — no jq dependency.
+DEB_URL=$(grep -o '"browser_download_url": *"[^"]*\.deb"' "$RELEASE_JSON" \
+  | head -1 \
+  | sed 's/.*"browser_download_url": *"\(.*\)"/\1/')
+
+if [[ -z "$DEB_URL" ]]; then
+  err "No .deb found in the latest release"
+  err "Make sure a release with a .deb asset is published at:"
+  err "  https://github.com/${REPO}/releases"
+  exit 1
 fi
 
-# ---- Build ----
-# On a fresh clone we have no .deb. On --rebuild we wipe the previous
-# artifact so we actually get the new version. dpkg -i will then
-# upgrade-in-place over the previously installed package (no need to
-# uninstall first; it preserves /opt/Whatsuck and user data).
-if [[ ! -f "$DEB_FILE" ]] || [[ "${1:-}" == "--rebuild" ]]; then
-  if [[ -f "$DEB_FILE" ]] && [[ "${1:-}" == "--rebuild" ]]; then
-    info "Removing previous build artifact (--rebuild)"
-    rm -f "$DEB_FILE"
-    rm -rf dist/linux-unpacked dist/latest-linux.yml
-  fi
-  info "Building .deb (this downloads Electron, ~150 MB; one-time)"
-  npm run build
-  ok "Build complete"
+DEB_NAME=$(basename "$DEB_URL")
+DEB_PATH="$TMPDIR_SETUP/$DEB_NAME"
+ok "Latest release found"
+
+# ---- Download ----
+info "Downloading $DEB_NAME"
+if command -v curl >/dev/null 2>&1; then
+  curl -L --progress-bar -o "$DEB_PATH" "$DEB_URL"
 else
-  info ".deb already built, reusing (use --rebuild to force)"
+  wget -q --show-progress -O "$DEB_PATH" "$DEB_URL"
 fi
+ok "Download complete"
 
 # ---- Install / upgrade ----
-# dpkg -i on an already-installed package performs an in-place
-# upgrade: files in /opt/Whatsuck/ get replaced, session data in
-# ~/.config/whatsuck/ is preserved. The running app must be
-# closed first; we warn the user below.
 if dpkg -l "$APP_ID" 2>/dev/null | grep -q "^ii"; then
-  info "Existing Whatsuck install detected — this will upgrade it"
+  info "Existing Whatsuck install detected — upgrading"
   info "(close any running Whatsuck window first)"
 else
   info "Fresh install"
 fi
-sudo dpkg -i "$DEB_FILE"
+
+info "Installing system-wide (sudo required)"
+sudo dpkg -i "$DEB_PATH"
 # dpkg may stop with missing runtime deps; finish with apt.
 if ! dpkg -l "$APP_ID" 2>/dev/null | grep -q "^ii"; then
   info "Resolving runtime dependencies via apt"
@@ -125,13 +116,18 @@ if ! dpkg -l "$APP_ID" 2>/dev/null | grep -q "^ii"; then
 fi
 ok "Installed"
 
+# ---- Done ----
 bold ""
 bold "Whatsuck is ready."
+echo
+echo "  Uygulama menüsünden çalıştırın (search 'Whatsuck'),"
+echo "  veya terminalden:  whatsuck"
+echo "  Belirli bir profil açın:  whatsuck --profile=work"
 echo
 echo "  Run from the application menu (search 'Whatsuck'),"
 echo "  or from a terminal:  whatsuck"
 echo "  Open a specific profile:  whatsuck --profile=work"
 echo
-echo "  Re-run this script with --uninstall to remove the app"
-echo "  and wipe all session data."
+echo "  Kaldırmak için:  ./uninstall.sh"
+echo "  To uninstall:   ./uninstall.sh"
 echo
