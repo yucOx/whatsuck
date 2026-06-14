@@ -37,13 +37,19 @@ exports.default = async function afterPack(context) {
   // check happens before app.commandLine.appendSwitch takes effect.
   // --disable-dev-shm-usage redirects /dev/shm to TMPDIR for the
   // same quota reason.
+  //
+  // We use readlink -f to resolve any symlinks (e.g. when launched
+  // via /usr/bin/whatsuck which is a symlink to /opt/Whatsuck/whatsuck).
+  // Without this, dirname "$0" would give /usr/bin and look for
+  // /usr/bin/whatsuck.bin which doesn't exist.
   const wrapper = [
     '#!/bin/bash',
     'set -e',
     'WHATSUCK_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/whatsuck"',
     'mkdir -p "$WHATSUCK_HOME/tmp"',
     'export TMPDIR="$WHATSUCK_HOME/tmp"',
-    `exec "$(dirname "$0")/whatsuck.bin" --no-sandbox --disable-dev-shm-usage "$@"`,
+    `SELF="$(readlink -f "$0")"`,
+    `exec "$(dirname "$SELF")/whatsuck.bin" --no-sandbox --disable-dev-shm-usage "$@"`,
     '',
   ].join('\n');
 
