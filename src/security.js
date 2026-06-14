@@ -39,7 +39,7 @@ function checkKeyringAndWarn(mainWindow) {
         'your WhatsApp account.\n\n' +
         'Recommended: install gnome-keyring or enable full-disk ' +
         'encryption (LUKS). This app will still run either way.',
-      buttons: ['Continue', 'Open help', 'Quit'],
+      buttons: ['Run anyway (unsafe)', 'Open help', 'Quit'],
       defaultId: 0,
       cancelId: 0,
     });
@@ -51,6 +51,7 @@ function checkKeyringAndWarn(mainWindow) {
     } else if (choice === 2) {
       app.quit();
     }
+    // Choice 0 (Run anyway) falls through and the app continues.
   }
 }
 

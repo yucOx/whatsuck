@@ -27,3 +27,17 @@ pnpm-debug.log*
 # Environment
 .env
 .env.local
+.env.*.local
+
+# Secrets
+*.pem
+*.key
+*.p12
+*.pfx
+credentials
+credentials.json
+secrets.json
+
+# Test outputs
+coverage/
+.nyc_output/
