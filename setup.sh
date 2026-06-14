@@ -70,15 +70,21 @@ ok "Node $(node -v)"
 
 # ---- Clone or refresh ----
 if [[ -d "$PROJECT_DIR" ]]; then
-  if [[ "${1:-}" == "--rebuild" ]] || [[ -n "$(git -C "$PROJECT_DIR" status --porcelain 2>/dev/null)" ]]; then
-    info "Reusing existing checkout"
+  info "Found existing checkout"
+  cd "$PROJECT_DIR"
+  if [[ "${1:-}" == "--rebuild" ]] || [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+    info "Pulling latest changes"
+    git pull --rebase --autostash
+    ok "Updated to latest"
+  else
+    info "Working tree clean and no --rebuild; keeping current code"
   fi
 else
   info "Cloning $REPO_URL"
   git clone --depth 1 "$REPO_URL" "$PROJECT_DIR"
+  cd "$PROJECT_DIR"
   ok "Cloned"
 fi
-cd "$PROJECT_DIR"
 
 # ---- Install npm deps ----
 if [[ ! -d node_modules ]]; then
@@ -90,7 +96,16 @@ else
 fi
 
 # ---- Build ----
-if [[ ! -f "$DEB_FILE" ]]; then
+# On a fresh clone we have no .deb. On --rebuild we wipe the previous
+# artifact so we actually get the new version. dpkg -i will then
+# upgrade-in-place over the previously installed package (no need to
+# uninstall first; it preserves /opt/Whatsuck and user data).
+if [[ ! -f "$DEB_FILE" ]] || [[ "${1:-}" == "--rebuild" ]]; then
+  if [[ -f "$DEB_FILE" ]] && [[ "${1:-}" == "--rebuild" ]]; then
+    info "Removing previous build artifact (--rebuild)"
+    rm -f "$DEB_FILE"
+    rm -rf dist/linux-unpacked dist/latest-linux.yml
+  fi
   info "Building .deb (this downloads Electron, ~150 MB; one-time)"
   npm run build
   ok "Build complete"
@@ -98,8 +113,17 @@ else
   info ".deb already built, reusing (use --rebuild to force)"
 fi
 
-# ---- Install ----
-info "Installing system-wide (sudo required)"
+# ---- Install / upgrade ----
+# dpkg -i on an already-installed package performs an in-place
+# upgrade: files in /opt/Whatsuck/ get replaced, session data in
+# ~/.config/whatsuck/ is preserved. The running app must be
+# closed first; we warn the user below.
+if dpkg -l "$APP_ID" 2>/dev/null | grep -q "^ii"; then
+  info "Existing Whatsuck install detected — this will upgrade it"
+  info "(close any running Whatsuck window first)"
+else
+  info "Fresh install"
+fi
 sudo dpkg -i "$DEB_FILE"
 # dpkg may stop with missing runtime deps; finish with apt.
 if ! dpkg -l "$APP_ID" 2>/dev/null | grep -q "^ii"; then
