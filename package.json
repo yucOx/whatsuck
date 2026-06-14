@@ -21,6 +21,7 @@
   "build": {
     "appId": "com.whatsuck.app",
     "productName": "Whatsuck",
+    "afterPack": "build/afterPack.js",
     "linux": {
       "target": "deb",
       "category": "Network",
