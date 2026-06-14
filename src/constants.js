@@ -27,14 +27,13 @@ module.exports = Object.freeze({
   // Assets (resolved relative to project root)
   iconPath: path.join(__dirname, '..', 'assets', 'icon.png'),
 
-  // Chromium switches
-  // --no-sandbox is required when running as a non-root user without
-  // the SUID chrome-sandbox helper (typical for AppImage/deb installs
-  // where the sandbox can't be re-mounted with setuid).
+  // Chromium switches (passed WITHOUT the -- prefix to appendSwitch).
   //
-  // --disable-dev-shm-usage  — /dev/shm is too small or locked down on
-  // some Linux setups (containers, restricted environments). Tells
-  // Chromium to fall back to /tmp for shared memory. Adds a perf cost
-  // on render-heavy pages but avoids the FATAL startup crash.
-  cliSwitches: ['--no-sandbox', '--disable-dev-shm-usage'],
+  // no-sandbox — required when running as a non-root user without the
+  // SUID chrome-sandbox helper. Common for AppImage/deb installs.
+  //
+  // disable-dev-shm-usage — /dev/shm can be too small or restricted
+  // (containers, user-quota'd mounts) for Chromium's shared memory
+  // segments. Redirects shared memory to /tmp.
+  cliSwitches: ['no-sandbox', 'disable-dev-shm-usage'],
 });
