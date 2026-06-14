@@ -20,7 +20,7 @@ const { loadSettings, saveSettings } = require('./settings');
  * @param {Function} options.currentWindow  - Returns the focused BrowserWindow.
  * @param {Function} options.openProfile    - Opens a new window for a profile.
  */
-function installAppMenu({ currentWindow, openProfile } = {}) {
+function installAppMenu({ currentWindow, openProfile, quitApp } = {}) {
   function rebuildMenu() {
     const win = currentWindow ? currentWindow() : null;
     const currentProfileId = win ? win._profileId : 'default';
@@ -161,7 +161,18 @@ function installAppMenu({ currentWindow, openProfile } = {}) {
             click: () => win && win.webContents.reload(),
           },
           { type: 'separator' },
-          { role: 'quit' },
+          {
+            label: 'Hide to Tray',
+            click: () => win && win.hide(),
+          },
+          {
+            label: 'Quit',
+            accelerator: 'CmdOrCtrl+Q',
+            click: () => {
+              if (quitApp) quitApp();
+              else app.quit();
+            },
+          },
         ],
       },
       profilesMenu,

@@ -84,7 +84,14 @@ async function checkForUpdates() {
     });
 
     if (choice === 0) {
-      updater.quitAndInstall();
+      // Close all windows cleanly first to avoid Electron's
+      // "destroyed" race during quitAndInstall on Linux.
+      BrowserWindow.getAllWindows().forEach((w) => {
+        if (!w.isDestroyed()) w.destroy();
+      });
+      // The updater installs the downloaded .deb on the next
+      // process exit (autoInstallOnAppQuit is true).
+      app.exit(0);
     }
   });
 

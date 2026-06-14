@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog } = require('electron');
 
 const C = require('./constants');
 const { createMainWindow } = require('./window');
@@ -9,11 +9,17 @@ const { attachNotificationBridge } = require('./notifications');
 const { checkKeyringAndWarn } = require('./security');
 const { checkForUpdates } = require('./updater');
 const { checkBrowserStaleness } = require('./browser-check');
-const { loadProfiles, getActiveProfileId } = require('./profiles');
+const { loadProfiles, getActiveProfileId, saveProfiles } = require('./profiles');
 const { syncDesktopFiles } = require('./desktop');
+const { createTray, destroyTray, focusExistingWindows } = require('./tray');
 
 // Track windows by profile id, since multiple windows can coexist.
 const windowsByProfile = new Map();
+
+// Whether closing a window should quit the app. When the tray is
+// active, the user closing the last window means "hide to tray",
+// not "quit". The only path to quit is the tray's Quit menu.
+let isQuitting = false;
 
 // Resolve the profile to open on this launch.
 const initialProfileId = getActiveProfileId(process.argv);
@@ -45,13 +51,13 @@ function openProfile(profileId) {
     const profiles = loadProfiles();
     if (!profiles.some(p => p.id === 'default')) {
       profiles.unshift({ id: 'default', name: 'Personal', isDefault: true, isPinned: false });
-      require('./profiles').saveProfiles(profiles);
+      saveProfiles(profiles);
     }
   }
   const existing = windowsByProfile.get(profileId);
   if (existing && !existing.isDestroyed()) {
     if (existing.isMinimized()) existing.restore();
-    existing.focus();
+    existing.show();
     return existing;
   }
 
@@ -59,54 +65,87 @@ function openProfile(profileId) {
     profileId,
     onClosed: () => {},
   });
+
+  // Intercept the close button: hide to tray instead of quitting,
+  // unless the user explicitly chose Quit.
+  win.on('close', (event) => {
+    if (isQuitting) return; // allow close during real quit
+    if (!trayExists()) return; // no tray → behave normally
+    event.preventDefault();
+    win.hide();
+  });
+
   registerWindow(win);
   attachNotificationBridge(win);
   return win;
 }
 
+function trayExists() {
+  // The tray module returns a singleton. If createTray has been
+  // called and not yet destroyed, the tray is active.
+  try {
+    const { getTray } = require('./tray');
+    return getTray() !== null;
+  } catch {
+    return false;
+  }
+}
+
+function quitApp() {
+  isQuitting = true;
+  destroyTray();
+  app.quit();
+}
+
 function bootstrap() {
   openProfile(initialProfileId);
 
-  // Install the app menu ONCE. It dynamically rebuilds based on
-  // whichever window is focused, so multiple windows share a single
-  // menu that just queries the current focus.
   installAppMenu({
     currentWindow: () => BrowserWindow.getFocusedWindow() || null,
     openProfile,
+    quitApp,
   });
 
-  // The keyring/updater dialogs need a parent window. They only
-  // fire once per process, so they can attach to the first window.
+  // Create the tray so closing the window keeps the app alive.
+  // The tray icon gives the user a way back in (left click to
+  // restore) and out (right-click → Quit).
+  createTray(quitApp);
+
   const primary = windowsByProfile.get(initialProfileId);
   if (primary) {
     checkKeyringAndWarn(primary);
   }
 
-  // Auto-update runs in the background, no window parent needed.
   checkForUpdates();
-
-  // Check if the bundled Chromium is too far behind stable Chrome.
   checkBrowserStaleness();
-
-  // Reconcile pinned .desktop files with current profile list.
   syncDesktopFiles(loadProfiles(), app.getPath('exe'));
 }
 
 app.whenReady().then(bootstrap);
 
-app.on('window-all-closed', () => {
-  // Standard desktop behavior: quit when all windows close,
-  // except on macOS where apps stay in the dock.
-  if (process.platform !== 'darwin') {
-    app.quit();
+// With the tray active, "all windows closed" is not a quit signal.
+// The tray remains. Only explicit Quit (tray menu, or the in-app
+// menu's Quit role) ends the process.
+app.on('window-all-closed', (e) => {
+  if (process.platform === 'darwin') return;
+  if (!isQuitting) {
+    // Prevent the default app-quit behavior. The user can still
+    // quit via the tray menu.
+    e.preventDefault();
   }
 });
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     openProfile(initialProfileId);
+  } else {
+    focusExistingWindows();
   }
 });
 
-// Expose openProfile for the menu module to call.
+app.on('before-quit', () => {
+  isQuitting = true;
+  destroyTray();
+});
+
 module.exports = { openProfile, windowsByProfile };
