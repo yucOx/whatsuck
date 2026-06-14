@@ -1,6 +1,6 @@
 'use strict';
 
-const { BrowserWindow, session } = require('electron');
+const { BrowserWindow, session, shell } = require('electron');
 const C = require('./constants');
 
 // WhatsApp Web rejects browsers whose User-Agent doesn't look like
@@ -77,6 +77,46 @@ function createMainWindow({ profileId = 'default', onClosed } = {}) {
   // Tag the window with its profile id so the menu and main process
   // can look up which profile this window belongs to.
   win._profileId = profileId;
+
+  // --- External link handling ---
+  // WhatsApp Web shows previews and contact links that point at
+  // arbitrary http(s):// URLs. We don't want those opening inside
+  // the Electron window (which would lose the per-profile session)
+  // — we want them in the OS default browser via xdg-open.
+  //
+  // Two intercept points are needed:
+  //   1. will-navigate     – any link click / window.location change
+  //   2. setWindowOpenHandler – target="_blank" / window.open()
+  //
+  // We only intercept URLs that don't match the current WhatsApp
+  // Web origin, so internal navigation (e.g. multi-step log-in
+  // flows) still works.
+
+  const isExternal = (url) => {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+      return u.host !== 'web.whatsapp.com';
+    } catch {
+      return false;
+    }
+  };
+
+  win.webContents.on('will-navigate', (event, url) => {
+    if (isExternal(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isExternal(url)) {
+      shell.openExternal(url);
+    }
+    // Block in-app new windows regardless. WhatsApp Web's
+    // target="_blank" is rare and not useful here.
+    return { action: 'deny' };
+  });
 
   win.loadURL(C.whatsAppUrl);
 

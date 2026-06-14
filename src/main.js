@@ -79,8 +79,10 @@ function bootstrap() {
   const primary = windowsByProfile.get(initialProfileId);
   if (primary) {
     checkKeyringAndWarn(primary);
-    checkForUpdates(primary);
   }
+
+  // Auto-update runs in the background, no window parent needed.
+  checkForUpdates();
 
   // Reconcile pinned .desktop files with current profile list.
   syncDesktopFiles(loadProfiles(), app.getPath('exe'));

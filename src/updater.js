@@ -1,99 +1,94 @@
 'use strict';
 
-const { app, dialog, shell } = require('electron');
-const https = require('https');
+const { app, dialog, BrowserWindow } = require('electron');
 const C = require('./constants');
 
 /**
- * Check GitHub releases for a newer version.
+ * Auto-update via electron-updater.
  *
- * Runs once on startup (non-blocking). If a newer version is found,
- * shows a dialog offering to open the release page. The user is never
- * forced to update — this is informational only.
+ * Reads the latest release from GitHub, downloads the new .deb in the
+ * background, and prompts the user to install. The user is in control —
+ * they confirm before anything is replaced.
  *
- * We compare against package.json version. The check is skipped when
- * running in development (`npm start`) to avoid noise.
+ * electron-updater uses `app-update.yml` which electron-builder
+ * embeds in the .deb at build time. The publish config in
+ * package.json points it at the GitHub releases.
+ *
+ * Skipped during `npm start` (`app.isPackaged === false`).
  */
-const GITHUB_REPO = 'yucOx/whatsuck';
 
-async function fetchLatestVersion() {
-  return new Promise((resolve) => {
-    const options = {
-      hostname: 'api.github.com',
-      path: `/repos/${GITHUB_REPO}/releases/latest`,
-      headers: { 'User-Agent': 'Whatsuck-Updater' },
-      timeout: 8000,
-    };
-
-    const req = https.get(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => (body += chunk));
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(body);
-          resolve({
-            tag: json.tag_name || null,
-            url: json.html_url || null,
-            error: null,
-          });
-        } catch {
-          resolve({ tag: null, url: null, error: 'parse_error' });
-        }
-      });
-    });
-
-    req.on('error', () => resolve({ tag: null, url: null, error: 'network' }));
-    req.on('timeout', () => {
-      req.destroy();
-      resolve({ tag: null, url: null, error: 'timeout' });
-    });
-  });
+// Lazy-load so dev mode (where electron-updater isn't strictly needed)
+// doesn't blow up if something in its chain isn't fully ready.
+let autoUpdater = null;
+function getUpdater() {
+  if (autoUpdater) return autoUpdater;
+  autoUpdater = require('electron-updater').autoUpdater;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  return autoUpdater;
 }
 
 /**
- * Compare semver strings. Returns true if `remote` > `local`.
+ * Run the update flow. Safe to call once on app start.
  */
-function isNewer(remote, local) {
-  const r = remote.replace(/^v/, '').split('.').map(Number);
-  const l = local.replace(/^v/, '').split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if ((r[i] || 0) > (l[i] || 0)) return true;
-    if ((r[i] || 0) < (l[i] || 0)) return false;
-  }
-  return false;
-}
-
-async function checkForUpdates(mainWindow) {
-  // Skip update checks during development.
+async function checkForUpdates() {
   if (!app.isPackaged) {
     return;
   }
 
-  const result = await fetchLatestVersion();
-
-  if (result.error || !result.tag) {
-    // Silent fail — don't nag the user about network issues.
+  let updater;
+  try {
+    updater = getUpdater();
+  } catch (err) {
+    // No releases published yet, or network unreachable on first run.
     return;
   }
 
-  const currentVersion = app.getVersion();
+  // Wire up event handlers.
+  updater.removeAllListeners();
 
-  if (isNewer(result.tag, currentVersion)) {
-    const choice = dialog.showMessageBoxSync(mainWindow, {
+  updater.on('update-available', (info) => {
+    // Notification in a window that the user can act on later.
+    const parent = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+    dialog.showMessageBox(parent, {
       type: 'info',
       title: `${C.productName}: update available`,
-      message: `Version ${result.tag} is available (you have ${currentVersion}).`,
+      message: `Version ${info.version} is downloading…`,
       detail:
-        'Download the new .deb from the release page and install it ' +
-        'with: sudo dpkg -i whatsuck_*.deb',
-      buttons: ['Download', 'Skip'],
+        'The update will install automatically the next time you quit ' +
+        `${C.productName}. Or use File → Quit Now.`,
+      buttons: ['OK'],
+    });
+  });
+
+  updater.on('update-downloaded', (info) => {
+    const parent = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+    const choice = dialog.showMessageBoxSync(parent, {
+      type: 'info',
+      title: `${C.productName}: update ready`,
+      message: `Version ${info.version} has been downloaded.`,
+      detail:
+        'Restart now to install, or choose "Later" to install the next ' +
+        'time you quit the app.',
+      buttons: ['Restart now', 'Later'],
       defaultId: 0,
       cancelId: 1,
     });
 
-    if (choice === 0 && result.url) {
-      shell.openExternal(result.url);
+    if (choice === 0) {
+      updater.quitAndInstall();
     }
+  });
+
+  updater.on('error', () => {
+    // Silent: don't nag the user about transient network or release
+    // config issues. Updates are a convenience, not a critical path.
+  });
+
+  try {
+    await updater.checkForUpdates();
+  } catch {
+    // Silent. Same reason as above.
   }
 }
 
