@@ -1,73 +1,84 @@
-# Whatsuck 🟢
+<p align="center">
+  <img src="assets/icon.png" width="128" height="128" alt="Whatsuck ikonu">
+</p>
 
-> **WhatsApp Web, native bir Ubuntu masaüstü uygulaması olarak.**
-> Aynı anda birden fazla WhatsApp hesabı. Her hesap tamamen izole.
-> Bildirimler, masaüstü kısayolları, otomatik güncelleme — hepsi dahil.
+<h1 align="center">Whatsuck</h1>
 
-[![GitHub release](https://img.shields.io/github/v/release/yucOx/whatsuck)](https://github.com/yucOx/whatsuck/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform: Ubuntu](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Debian-E95420?logo=ubuntu)](https://ubuntu.com)
-[![Electron: 35](https://img.shields.io/badge/electron-35-47848F?logo=electron)](https://www.electronjs.org/)
+<p align="center">
+  <strong>WhatsApp Web, native bir Ubuntu masaüstü uygulaması olarak.</strong><br>
+  Aynı anda birden fazla hesap. Gerçek bildirimler. Otomatik güncelleme. Hepsi ~85 MB'lık tek pakette.
+</p>
 
-**[🇬🇧 English documentation](README.md)**
+<p align="center">
+  <a href="https://github.com/yucOx/whatsuck/releases"><img src="https://img.shields.io/github/v/release/yucOx/whatsuck?style=flat-square" alt="Sürüm"></a>
+  <a href="https://github.com/yucOx/whatsuck/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/yucOx/whatsuck/release.yml?style=flat-square" alt="Build"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/yucOx/whatsuck?style=flat-square" alt="Lisans"></a>
+  <a href="https://github.com/yucOx/whatsuck/releases"><img src="https://img.shields.io/github/downloads/yucOx/whatsuck/total?style=flat-square" alt="İndirme"></a>
+  <a href="https://github.com/yucOx/whatsuck/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PR kabul edilir"></a>
+  <a href="https://github.com/yucOx/whatsuck"><img src="https://img.shields.io/github/last-commit/yucOx/whatsuck?style=flat-square" alt="Son commit"></a>
+</p>
+
+<p align="center">
+  <a href="README.md">🇬🇧 English</a> ·
+  <a href="README.tr.md">🇹🇷 Türkçe</a>
+</p>
 
 ---
 
 ## Neden Whatsuck?
 
-Tarayıcı sekmesinde WhatsApp Web kullanmak işe yarar — ama:
+Tarayıcı sekmesinde WhatsApp Web işin %90'ını görür — geri kalan %10'u aslında yaşamaya başlayınca fark edersiniz.
 
-- ❌ Sekmeyi kapatırsan bildirimler gelmez
-- ❌ Aynı anda iki numara kullanamazsın
-- ❌ WhatsApp'ın "works with Google Chrome 85+" uyarısı çıkar
-- ❌ Tarayıcı kapandığında oturum kaybolur
+| Tarayıcı sekmesi | Whatsuck |
+|---|---|
+| ❌ Sekmeyi kapatırsan bildirim gelmez | ✅ Arka plan, bildirimler her zaman açık |
+| ❌ Aynı anda tek numara | ✅ Birden fazla profil, yan yana |
+| ❌ "Chrome 85+ gerekli" uyarısı | ✅ Chromium 130+ dahili, uyarı yok |
+| ❌ Tarayıcı reset'lerse çerezler silinir | ✅ OS keyring ile şifreli, restart sonrası kalır |
+| ❌ Uygulama menüsünde gözükmez | ✅ Her profil için gerçek `.desktop` entegrasyonu |
+| ❌ Otomatik güncelleme yok | ✅ Arka planda indirir ve kurar |
 
-**Whatsuck bunların hepsini çözer:**
-
-- ✅ Her mesaj için gerçek OS bildirimi (libnotify / GNOME / KDE)
-- ✅ Birden fazla profil — birden fazla WhatsApp hesabı, aynı anda
-- ✅ Electron Chromium ile stabil rendering, uyarı yok
-- ✅ Profil başına izole oturum, çerezler OS keyring ile şifrelenir
-- ✅ Sistem tepsisi, masaüstü kısayolları, otomatik güncelleme
+**Asıl öne çıkan özellik: aynı anda birden fazla WhatsApp hesabı.** Her profil tamamen izole (ayrı çerez, localStorage, IndexedDB, HTTP cache). Kişisel numaranla bir pencerede, iş numaranla diğerinde — incognito gereksiz, ikinci tarayıcı gereksiz, logout gereksiz.
 
 ---
 
-## Özellikler
+## ✨ Özellikler
 
 ### 💬 WhatsApp için her şey
 
-- **Gerçek bildirimler** — gelen mesajlar OS notification center'a düşer, Whatsuck ikonuyla
-- **Çoklu profil** — birden fazla WhatsApp hesabı, her biri kendi izole oturumunda (cookies, localStorage, IndexedDB)
-- **Masaüstüne sabitle** — her profili GNOME/KDE uygulama menüsüne "Whatsuck (İş)" gibi pinle
-- **Varsayılan profil** — `whatsuck`'ı açtığında hangi hesap gelsin sen seç
+- **Çoklu profil** — iki veya daha fazla WhatsApp hesabı yan yana, her biri kendi izole oturumunda
+- **Masaüstüne sabitle** — istediğin profili "Whatsuck (İş)" olarak uygulama menüsüne pinle
+- **Varsayılan profil** — `whatsuck` açtığında hangi hesap gelsin sen seç
+- **Gerçek bildirimler** — gelen mesajlar OS bildirim merkezine (libnotify / GNOME / KDE) Whatsuck ikonuyla düşer
+- **Dış linkler** — sohbetteki URL'ler uygulama içinde değil, varsayılan tarayıcıda açılır
 
 ### 🔐 Güvenlik
 
-- **Otomatik güncelleme** — yeni sürüm çıktığında arka planda indirir, restart edince kurar
-- **OS keyring** — session cookie'leri GNOME Keyring / KWallet ile şifrelenir (varsa)
-- **Sert webPreferences** — `contextIsolation`, `sandbox`, `webSecurity=true` hepsi açık
-- **İzolasyonlu dialog** — preload script + contextBridge, Node.js'e renderer erişimi yok
-- **SHA512 doğrulama** — güncellemeler hash kontrolüyle doğrulanır
-- **Dış linkler** — WhatsApp'taki linkler varsayılan tarayıcında açılır, uygulama içinde değil
+- **Otomatik güncelleme** — GitHub releases'i kontrol eder, arka planda indirir, SHA512 doğrulamalı
+- **OS keyring** — session çerezleri GNOME Keyring / KWallet ile şifrelenir (varsa)
+- **Sert sandboxing** — `contextIsolation`, `sandbox`, `webSecurity=true`, `nodeIntegration` yok, `webviewTag` yok
+- **İzolasyonlu dialog** — profil girişi preload + `contextBridge` ile; renderer'ın Node.js erişimi yok
+- **Dış linkler** — sadece `http`/`https` ve WhatsApp dışı hostlar uygulamadan çıkar
+- **Bildirim throttle** — saniyede en fazla 1, OS DoS koruması
 
 ### ⚙️ Teknik
 
-- **Menü çubuğu her zaman görünür** — View menüsünden gizleyebilirsin, Alt ile geri getirirsin
+- **Menü çubuğu her zaman açık** — View menüsünden gizleyebilirsin, Alt ile geri getirebilirsin
 - **Klavye kısayolları** — `Ctrl+R` reload, `Ctrl+N` yeni pencere, `F12` DevTools
-- **CLI profiller** — `whatsuck --profile=is` ile belirli profili aç
-- **Düşük yüzey** — telemetry yok, analytics yok, ekstra bağımlılık yok
-- **~85 MB** — tek dosya `.deb` içinde bütün Electron runtime
+- **CLI profiller** — `whatsuck --profile=is` ile belirli hesabı aç
+- **Chromium güncellik uyarısı** — bundled Chromium 2+ ana sürüm gerideyse haber verir
+- **~85 MB `.deb`** — bağımsız, dış runtime gerektirmez
+- **Sağlam hata yönetimi** — bozuk profil dosyaları otomatik yedeklenir; kötü CLI girdisi zarifçe varsayılana düşer
 
 ---
 
-## Kurulum
+## 📦 Kurulum
 
-### Kolay yol (önerilir)
+### Tek komut (önerilir)
 
 `git`, `node` veya `npm` gerekmez — sadece `curl` veya `wget`:
 
 ```bash
-# İndir ve çalıştır
 curl -sL https://raw.githubusercontent.com/yucOx/whatsuck/main/setup.sh | bash -
 ```
 
@@ -87,14 +98,10 @@ Kurulum scripti sizin için her şeyi yapar:
 
 ### Manuel kurulum
 
-Önceden derlenmiş `.deb` indirmek istiyorsanız: [Releases sayfası](https://github.com/yucOx/whatsuck/releases)
-
 ```bash
 sudo dpkg -i whatsuck_1.0.0_amd64.deb
 sudo apt-get install -f   # eksik bağımlılıkları tamamla
 ```
-
-Uygulama menüsünde **Whatsuck**'ı arayın.
 
 ### Kaldırma
 
@@ -102,37 +109,21 @@ Uygulama menüsünde **Whatsuck**'ı arayın.
 ./uninstall.sh
 ```
 
-Kaldırıcı size interaktif olarak sorar: session verisi (profiller, çerezler, WhatsApp oturumları) silinsin mi? Ek olarak:
-
-```bash
-./setup.sh --uninstall     # uninstall.sh'e yönlendirir
-```
-
-veya manuel:
-
-```bash
-sudo apt remove whatsuck
-rm -rf ~/.config/whatsuck                  # session verisi
-rm ~/.local/share/applications/whatsuck-*.desktop  # pinlenmiş kısayollar
-```
+Kaldırıcı size interaktif olarak sorar: session verisi (profiller, çerezler, WhatsApp oturumları) silinsin mi? Silmezseniz daha sonra yeniden kurduğunuzda oturumlarınız korunur.
 
 ---
 
-## Çoklu WhatsApp Hesabı
+## 👥 Çoklu WhatsApp Hesabı
 
-Whatsuck'in en güçlü özelliği. Aynı anda iki (veya daha fazla) WhatsApp hesabı kullanın — birbirinden tamamen izole.
+Her profil tamamen izole bir WhatsApp oturumudur. Menü çubuğunda **Profiles**'a tıklayın:
 
-### Profil menüsü
-
-Uygulama menüsünde **Profiles**'a tıklayın:
-
-| Seçenek | Ne yapar |
-| --- | --- |
-| **New Profile…** | Yeni profil oluşturur, ayrı bir WhatsApp penceresi açar |
-| **Rename…** | Mevcut profilin görünen adını değiştirir |
-| **Delete** | Profilin tüm oturum verisini siler (geri alınamaz!) |
-| **Set as Default** | `whatsuck` komutuyla hangi profil açılsın |
-| **Pin to Desktop** | Profili uygulama menüsüne sabitle |
+| Menü öğesi | Ne yapar |
+|---|---|
+| New Profile… | Yeni oturum oluşturur ve WhatsApp penceresi açar |
+| Rename… | Profilin görünen adını değiştirir |
+| Delete | Profilin tüm oturum verisini kalıcı olarak siler |
+| Set as Default | `whatsuck` komutuyla hangi profil açılsın |
+| Pin to Desktop | Uygulama menüsünde `.desktop` girdisi oluşturur |
 
 ### Komut satırından
 
@@ -143,14 +134,14 @@ whatsuck --profile=is          # "İş" profilini açar
 
 ### Nasıl çalışır
 
-Her profil kendi Electron partition'ında çalışır. Çerezler, IndexedDB ve HTTP cache ayrı dizinlerde tutulur:
+Her profil kendi Electron partition'ında çalışır (`persist:<id>`), `~/.config/whatsuck/Partitions/<id>/` altında. `default` profil geriye uyumlu kalır — mevcut kullanıcılar upgrade sonrası oturumlarını kaybetmez.
 
 ```
 ~/.config/whatsuck/
-├── profiles.json           # Profil metadata
-├── Cookies                 # default profil çerezleri
-├── Local Storage/          # default profil storage
-├── IndexedDB/              # default profil database
+├── profiles.json              # Profil metadata
+├── Cookies                   # Default profil çerezleri
+├── Local Storage/            # Default profil storage
+├── IndexedDB/                # Default profil database
 └── Partitions/
     ├── is/
     │   ├── Cookies
@@ -159,16 +150,14 @@ Her profil kendi Electron partition'ında çalışır. Çerezler, IndexedDB ve H
         └── ...
 ```
 
-`default` profil geriye uyumlu — mevcut kullanıcılar upgrade sonrası oturumlarını kaybetmez.
-
 ---
 
-## Güvenlik
+## 🔒 Güvenlik ve Gizlilik
 
 ### Ne saklanıyor?
 
 | Veri | Şifreleme |
-| --- | --- |
+|---|---|
 | Çerezler (session token) | Mümkünse OS keyring ile şifrelenir |
 | IndexedDB / LocalStorage | Düz metin (LevelDB/SQLite) |
 | Uygulama tercihleri | Düz metin |
@@ -176,56 +165,85 @@ Her profil kendi Electron partition'ında çalışır. Çerezler, IndexedDB ve H
 ### Kim okuyabilir?
 
 | Erişim seviyesi | Risk |
-| --- | --- |
+|---|---|
 | Siz (kullanıcı) | Tam erişim |
 | Aynı makinedeki diğer kullanıcılar | `0700`/`0600` Unix izinleriyle korunur |
 | `sudo` / root | Her şeyi okuyabilir |
 | Çalıntı disk (FDE yok) | Her şeyi okuyabilir |
 | Çalıntı disk (LUKS) | Disk şifrelemesiyle korunur |
 
-**Önerilen**: Tam disk şifrelemesi (LUKS) kullanın. Keyring kontrolü ilk açılışta uyarır.
+**Önerilen**: Tam disk şifrelemesi (LUKS). İlk açılışta keyring kontrolü `libsecret` / `gnome-keyring` yoksa uyarır.
 
 ### Mimari
 
-- Her pencere `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true` ile çalışır
-- Profil dialog'u `preload` + `contextBridge` ile izole; renderer'da Node.js erişimi yok
-- Bildirimler saniyede bir ile sınırlı (spam koruması)
-- Güncellemeler HTTPS + SHA512 ile doğrulanır
-- İzinler: yalnızca `notifications` izni verilir
-- Dış linkler: `http`/`https` ve `web.whatsapp.com` dışı hostlar varsayılan tarayıcıda açılır
+- Her pencere: `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webviewTag: false`
+- Profil dialog: preload + `contextBridge` — renderer'ın Node.js erişimi yok
+- Bildirimler: saniyede en fazla 1 ile sınırlı (DoS koruması)
+- Güncellemeler: HTTPS + SHA512 doğrulama
+- İzinler: yalnızca `notifications` verilir
+- Dış linkler: yalnızca `http`/`https` ve WhatsApp dışı hostlar `shell.openExternal`'a yönlendirilir
+
+### Güvenlik açığı bildirimi
+
+GitHub'da özel güvenlik danışmanlığı açın veya `yucOx@users.noreply.github.com` adresine e-posta gönderin. Lütfen güvenlik açıkları için public issue açmayın.
 
 ---
 
-## Geliştirici
+## 🛠️ Geliştirici
 
 ```bash
+git clone https://github.com/yucOx/whatsuck.git
+cd whatsuck
 npm install
-npm start        # geliştirme modu (auto-update atlanır)
-npm run build    # .deb derler
+npm start        # geliştirme modu (auto-update ve keyring atlanır)
+npm run build    # dist/whatsuck_1.0.0_amd64.deb üretir
 ```
 
-### Modül yapısı
-
-```
-src/
-├── main.js                  # Entry point, lifecycle, multi-window
-├── window.js                 # BrowserWindow, partitions, UA spoofing
-├── profiles.js               # Profil metadata store
-├── desktop.js                # .desktop file yönetimi
-├── profile-dialog.js         # Modal text input dialog
-├── profile-dialog-preload.js # Preload — contextBridge, no nodeIntegration
-├── menu.js                   # Uygulama menüsü
-├── notifications.js          # Bildirim köprüsü (rate-limited)
-├── security.js               # Keyring kontrolü
-├── updater.js                # Otomatik güncelleme (SHA512)
-├── browser-check.js          # Chromium güncellik uyarısı
-└── constants.js              # Config
-build/
-└── afterPack.js              # Wrapper script generator
-```
+Modül haritası için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bakın.
 
 ---
 
-## Lisans
+## ❓ SSS
 
-MIT — detaylar için [LICENSE](LICENSE).
+**Bildirimler gelmiyor.** `libnotify-bin` kurulu olmalı: `sudo apt install libnotify-bin`. Minimal Ubuntu Server'da notification daemon çalışmıyor olabilir.
+
+**Yanlışlıkla profil sildim.** Geri alma yok — oturum verisi gitti. Profili yeniden oluşturup QR kodu tarayın.
+
+**WhatsApp "tarayıcı desteklenmiyor" diyor.** Bundled Chromium çok eski olabilir. Uygulama güncellemesini bekleyin veya issue açın.
+
+**Çoklu hesap çalışmıyor.** Her profil benzersiz bir telefon numarası gerektirir. WhatsApp Web her oturum için tek numara zorunlu tutar, partition'lar tam da bunu sağlar.
+
+**Otomatik güncelleme çalışmıyor.** `~/.config/whatsuck/Updater/` dizinindeki log'a bakın. Release'de `.deb` eklenmemiş olabilir.
+
+**Mac'e kurabilir miyim?** Henüz değil — sadece Ubuntu/Debian `.deb` üretiliyor. Windows desteği yol haritasında.
+
+---
+
+## 🗺️ Yol Haritası
+
+- [ ] macOS ve Windows buildleri
+- [ ] Profil başına bildirim sesi
+- [ ] Tepsi ikonu (okunmamış badge ile)
+- [ ] Tüm pencereler kapanınca çık (isteğe bağlı)
+- [ ] Tüm profillerde tek pencerede arama
+- [ ] Tema özelleştirmesi
+
+---
+
+## 🤝 Katkıda Bulunma
+
+PR kabul edilir. Kod tabanı küçük (`src/`'de 12 dosya, ~700 LOC); modül haritası için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bakın. PR açmadan önce:
+
+1. `npm run build` çalıştırın, `.deb`'in hâlâ kurulabildiğini doğrulayın
+2. Değişikliğinizi dev modda test edin (`npm start`)
+3. Büyük değişiklikler için önce issue açın
+
+Bug raporları: `whatsuck --version` çıktısı, Ubuntu sürümünüz ve nasıl yeniden üretileceği ile issue açın.
+
+Katkı rehberi için [CONTRIBUTING.md](CONTRIBUTING.md), topluluk standartları için [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+---
+
+## 📄 Lisans
+
+MIT — [LICENSE](LICENSE) detayları.
