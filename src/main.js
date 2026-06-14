@@ -60,17 +60,22 @@ function openProfile(profileId) {
   });
   registerWindow(win);
   attachNotificationBridge(win);
-  installAppMenu({
-    currentWindow: () => BrowserWindow.getFocusedWindow() || win,
-  });
   return win;
 }
 
 function bootstrap() {
   openProfile(initialProfileId);
 
-  // The default-window menu hint/warn/update should attach to whichever
-  // window is currently focused, since multiple can exist.
+  // Install the app menu ONCE. It dynamically rebuilds based on
+  // whichever window is focused, so multiple windows share a single
+  // menu that just queries the current focus.
+  installAppMenu({
+    currentWindow: () => BrowserWindow.getFocusedWindow() || null,
+    openProfile,
+  });
+
+  // The keyring/updater dialogs need a parent window. They only
+  // fire once per process, so they can attach to the first window.
   const primary = windowsByProfile.get(initialProfileId);
   if (primary) {
     checkKeyringAndWarn(primary);
