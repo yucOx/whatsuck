@@ -177,11 +177,14 @@ function installAppMenu({ currentWindow, openProfile } = {}) {
             label: 'Toggle Menu Bar',
             type: 'checkbox',
             checked: true,
+            // When unchecked, the menu bar hides. Pressing Alt shows
+            // it again briefly (the OS auto-hide behavior) so the
+            // user can always get back to the menu.
             click: (item, focusedWindow) => {
-              if (focusedWindow) {
-                focusedWindow.setMenuBarVisibility(!focusedWindow.isMenuBarVisible());
-                focusedWindow.autoHideMenuBar = !focusedWindow.isMenuBarVisible();
-              }
+              if (!focusedWindow) return;
+              const show = !item.checked;
+              focusedWindow.setMenuBarVisibility(show);
+              focusedWindow.autoHideMenuBar = !show;
             },
           },
           { type: 'separator' },

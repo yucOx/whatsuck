@@ -8,8 +8,8 @@
     "build": "electron-builder --linux deb"
   },
   "author": {
-    "name": "t4kinra",
-    "email": "t4kinra@localhost"
+    "name": "yucOx",
+    "email": "yucOx@users.noreply.github.com"
   },
   "homepage": "https://web.whatsapp.com",
   "license": "MIT",
@@ -31,7 +31,7 @@
       "target": "deb",
       "category": "Network",
       "icon": "assets/icon",
-      "maintainer": "t4kinra",
+      "maintainer": "yucOx",
       "synopsis": "WhatsApp Web as a native desktop app",
       "syncDesktopName": true
     }
