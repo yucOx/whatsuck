@@ -1,15 +1,18 @@
 'use strict';
 
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, ipcMain } = require('electron');
+const path = require('path');
 
 /**
  * Modal text input dialog.
  *
  * Electron's dialog module has no native text input. This is a small
- * modal BrowserWindow with an inlined HTML form. Resolves with the
- * entered string on OK, or null on cancel / window close.
+ * modal BrowserWindow that uses a preload script for IPC instead of
+ * nodeIntegration. The renderer runs in a strict context — it can
+ * only call the two channels we explicitly expose (submit / cancel)
+ * and it cannot reach Node.js APIs directly.
  *
- * Reusable: title and label are configurable.
+ * Resolves with the entered string on OK, or null on cancel / close.
  */
 function promptInput(parent, { title, label, defaultValue = '', confirmLabel = 'OK' } = {}) {
   return new Promise((resolve) => {
@@ -26,15 +29,42 @@ function promptInput(parent, { title, label, defaultValue = '', confirmLabel = '
       autoHideMenuBar: true,
       show: false,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
-        sandbox: false,
+        // Strict isolation. The renderer is fully sandboxed and has
+        // no access to Node.js, ipcRenderer, or any other Electron
+        // API beyond what we explicitly expose via the preload.
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+        preload: path.join(__dirname, 'profile-dialog-preload.js'),
+        // No webview, no remote, no insecure content.
+        webviewTag: false,
+        webSecurity: true,
+        allowRunningInsecureContent: false,
       },
     });
 
-    // The HTML is inlined so there's no dependency on a renderer file.
-    // nodeIntegration is on ONLY for this tiny dialog window so we
-    // can receive the user's input back without IPC.
+    // Receive the result via a one-shot ipc listener.
+    // The preload identifies itself with its own webContents.id so
+    // we don't accept answers from any other window.
+    const dialogWebContentsId = dialog.webContents.id;
+
+    const onResult = (event, value) => {
+      if (event.sender.id !== dialogWebContentsId) {
+        // Foreign IPC — drop it. Defence in depth.
+        return;
+      }
+      ipcMain.removeListener('profile-dialog-result', onResult);
+      resolve(typeof value === 'string' && value.trim() ? value.trim() : null);
+      if (!dialog.isDestroyed()) dialog.close();
+    };
+    ipcMain.once('profile-dialog-result', onResult);
+
+    dialog.on('closed', () => {
+      ipcMain.removeListener('profile-dialog-result', onResult);
+      // If closed without sending a result, treat as cancel.
+      resolve(null);
+    });
+
     const html = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
@@ -56,16 +86,15 @@ function promptInput(parent, { title, label, defaultValue = '', confirmLabel = '
     <button id="ok" class="primary"></button>
   </div>
   <script>
-    const { ipcRenderer } = require('electron');
+    const lbl = document.getElementById('lbl');
     const inp = document.getElementById('inp');
     const ok = document.getElementById('ok');
     const cancel = document.getElementById('cancel');
-    const lbl = document.getElementById('lbl');
     lbl.textContent = ${JSON.stringify(label || '')};
     ok.textContent = ${JSON.stringify(confirmLabel)};
     inp.value = ${JSON.stringify(defaultValue)};
     setTimeout(() => { inp.focus(); inp.select(); }, 30);
-    function submit(val) { window.close(); ipcRenderer.send('profile-dialog-result', val); }
+    function submit(val) { window.dialog.submit(val); }
     ok.addEventListener('click', () => submit(inp.value));
     cancel.addEventListener('click', () => submit(null));
     inp.addEventListener('keydown', (e) => {
@@ -74,21 +103,6 @@ function promptInput(parent, { title, label, defaultValue = '', confirmLabel = '
     });
   </script>
 </body></html>`;
-
-    // Receive the result via a one-shot ipc listener.
-    const { ipcMain } = require('electron');
-    const onResult = (_evt, value) => {
-      ipcMain.removeListener('profile-dialog-result', onResult);
-      resolve(typeof value === 'string' && value.trim() ? value.trim() : null);
-      if (!dialog.isDestroyed()) dialog.close();
-    };
-    ipcMain.once('profile-dialog-result', onResult);
-
-    dialog.on('closed', () => {
-      ipcMain.removeListener('profile-dialog-result', onResult);
-      // If closed without sending a result, treat as cancel.
-      resolve(null);
-    });
 
     dialog.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     dialog.show();

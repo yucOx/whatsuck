@@ -43,8 +43,19 @@ function attachNotificationBridge(mainWindow) {
     return permission === 'notifications';
   });
 
-  // Bridge in-page Notification → native Notification.
+// Bridge in-page Notification → native Notification.
+  // Rate-limit: a compromised page could otherwise spam the
+  // notification daemon. One notification per second is generous
+  // for a chat app and prevents DoS.
+  let lastNotificationTime = 0;
+  const NOTIFICATION_COOLDOWN_MS = 1000;
+
   mainWindow.webContents.on('notification', (_event, payload) => {
+    const now = Date.now();
+    if (now - lastNotificationTime < NOTIFICATION_COOLDOWN_MS) {
+      return; // throttled
+    }
+    lastNotificationTime = now;
     showNativeNotification(payload, mainWindow);
   });
 }

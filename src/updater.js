@@ -14,6 +14,12 @@ const C = require('./constants');
  * embeds in the .deb at build time. The publish config in
  * package.json points it at the GitHub releases.
  *
+ * Security: the GitHub provider uses HTTPS + downloads a signed
+ * releases.json (or latest-linux.yml) that includes SHA512 hashes
+ * for each artifact. electron-updater verifies the hash of the
+ * downloaded .deb against this manifest before installing. A
+ * network attacker cannot inject a different binary.
+ *
  * Skipped during `npm start` (`app.isPackaged === false`).
  */
 

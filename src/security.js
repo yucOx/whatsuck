@@ -33,11 +33,12 @@ function checkKeyringAndWarn(mainWindow) {
       title: `${C.productName}: session encryption unavailable`,
       message: 'No system keyring detected (libsecret / GNOME Keyring).',
       detail:
-        'Your WhatsApp session cookies will be stored without OS-level ' +
-        'encryption. Anyone with raw access to this disk (e.g. a stolen ' +
-        'laptop, or `sudo` on this machine) could read the session.\n\n' +
-        'Recommended: enable full-disk encryption (LUKS) or install ' +
-        'gnome-keyring. This app will still run either way.',
+        'Your WhatsApp session cookies will be stored in PLAIN TEXT ' +
+        'on disk. Anyone with raw access (e.g. a stolen laptop, or ' +
+        '`sudo` on this machine) could read your session and impersonate ' +
+        'your WhatsApp account.\n\n' +
+        'Recommended: install gnome-keyring or enable full-disk ' +
+        'encryption (LUKS). This app will still run either way.',
       buttons: ['Continue', 'Open help', 'Quit'],
       defaultId: 0,
       cancelId: 0,

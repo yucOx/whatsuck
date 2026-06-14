@@ -51,6 +51,12 @@ function createMainWindow({ profileId = 'default', onClosed } = {}) {
     nodeIntegration: false,
     contextIsolation: true,
     sandbox: true,
+    // Hardening: no legacy remote module, no webview tag, no
+    // inline-insecure loads, no JS-via-experimental-flags.
+    webviewTag: false,
+    webSecurity: true,
+    allowRunningInsecureContent: false,
+    experimentalFeatures: false,
   };
 
   // Non-default profiles need an explicit partition key so the
