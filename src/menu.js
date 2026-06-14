@@ -174,6 +174,18 @@ function installAppMenu({ currentWindow, openProfile } = {}) {
         label: 'View',
         submenu: [
           {
+            label: 'Toggle Menu Bar',
+            type: 'checkbox',
+            checked: true,
+            click: (item, focusedWindow) => {
+              if (focusedWindow) {
+                focusedWindow.setMenuBarVisibility(!focusedWindow.isMenuBarVisible());
+                focusedWindow.autoHideMenuBar = !focusedWindow.isMenuBarVisible();
+              }
+            },
+          },
+          { type: 'separator' },
+          {
             label: 'Toggle Developer Tools',
             accelerator: 'F12',
             click: () => win && win.webContents.toggleDevTools(),

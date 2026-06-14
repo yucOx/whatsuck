@@ -72,7 +72,6 @@ function createMainWindow({ profileId = 'default', onClosed } = {}) {
     minHeight: C.window.minHeight,
     title: C.productName,
     icon: C.iconPath,
-    autoHideMenuBar: true,
     show: false,
     webPreferences: webPrefs,
   });
