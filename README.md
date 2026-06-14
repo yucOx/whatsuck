@@ -72,7 +72,13 @@ sudo apt-get install -f   # resolve missing runtime deps
 ### Uninstall
 
 ```bash
-./setup.sh --uninstall     # removes app + session data + pinned shortcuts
+./uninstall.sh
+```
+
+The uninstaller asks you interactively whether to keep or delete your WhatsApp session data (profiles, cookies, logins). You can also run:
+
+```bash
+./setup.sh --uninstall     # forwards to uninstall.sh
 ```
 
 or manually:

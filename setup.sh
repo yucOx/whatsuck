@@ -23,22 +23,15 @@ ok()   { printf "  \033[32m✓\033[0m %s\n" "$*"; }
 err()  { printf "  \033[31m✗\033[0m %s\n" "$*" >&2; }
 
 # ---- Uninstall path ----
+# Forwards to uninstall.sh which asks the user interactively
+# whether to delete session data, pinned shortcuts, etc.
 if [[ "${1:-}" == "--uninstall" ]]; then
-  bold "Uninstalling Whatsuck"
-  if dpkg -l "$APP_ID" 2>/dev/null | grep -q "^ii"; then
-    sudo dpkg -r "$APP_ID" && ok "Package removed"
-  else
-    info "Package not installed via dpkg"
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -x "$SCRIPT_DIR/uninstall.sh" ]]; then
+    exec "$SCRIPT_DIR/uninstall.sh"
   fi
-  if [[ -d "$HOME/.config/whatsuck" ]]; then
-    rm -rf "$HOME/.config/whatsuck" && ok "Session data wiped (~/.config/whatsuck)"
-  fi
-  if [[ -d "$HOME/.cache/whatsuck" ]]; then
-    rm -rf "$HOME/.cache/whatsuck" && ok "Cache wiped (~/.cache/whatsuck)"
-  fi
-  rm -f "$HOME/.local/share/applications"/whatsuck-*.desktop 2>/dev/null && ok "Pinned .desktop files removed" || true
-  bold "Done."
-  exit 0
+  err "uninstall.sh not found next to setup.sh"
+  exit 1
 fi
 
 # ---- Pre-flight checks ----

@@ -93,7 +93,13 @@ Uygulama menüsünde **Whatsuck**'ı arayın.
 ### Kaldırma
 
 ```bash
-./setup.sh --uninstall    # hem uygulamayı hem session verisini siler
+./uninstall.sh
+```
+
+Kaldırıcı size interaktif olarak sorar: session verisi (profiller, çerezler, WhatsApp oturumları) silinsin mi? Ek olarak:
+
+```bash
+./setup.sh --uninstall     # uninstall.sh'e yönlendirir
 ```
 
 veya manuel:
