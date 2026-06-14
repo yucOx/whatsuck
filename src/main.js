@@ -6,6 +6,8 @@ const C = require('./constants');
 const { createMainWindow } = require('./window');
 const { installAppMenu } = require('./menu');
 const { attachNotificationBridge } = require('./notifications');
+const { checkKeyringAndWarn } = require('./security');
+const { checkForUpdates } = require('./updater');
 
 let mainWindow = null;
 
@@ -28,6 +30,11 @@ function bootstrap() {
     onToggleDevTools: () =>
       mainWindow && mainWindow.webContents.toggleDevTools(),
   });
+
+  // These are non-blocking and can run after the window is up.
+  // Order matters: warn about security before the update notification.
+  checkKeyringAndWarn(mainWindow);
+  checkForUpdates(mainWindow);
 }
 
 // Apply CLI switches before app is ready.
