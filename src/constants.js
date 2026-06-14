@@ -31,5 +31,10 @@ module.exports = Object.freeze({
   // --no-sandbox is required when running as a non-root user without
   // the SUID chrome-sandbox helper (typical for AppImage/deb installs
   // where the sandbox can't be re-mounted with setuid).
-  cliSwitches: ['--no-sandbox'],
+  //
+  // --disable-dev-shm-usage  — /dev/shm is too small or locked down on
+  // some Linux setups (containers, restricted environments). Tells
+  // Chromium to fall back to /tmp for shared memory. Adds a perf cost
+  // on render-heavy pages but avoids the FATAL startup crash.
+  cliSwitches: ['--no-sandbox', '--disable-dev-shm-usage'],
 });
