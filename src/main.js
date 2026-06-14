@@ -1,11 +1,23 @@
 'use strict';
 
 const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const C = require('./constants');
 const { createMainWindow } = require('./window');
 const { installAppMenu } = require('./menu');
 const { attachNotificationBridge } = require('./notifications');
+
+// Redirect Chromium's shared memory away from /dev/shm and /tmp.
+// On some Ubuntu setups, /dev/shm and /tmp are mounted with usrquota
+// which breaks Chromium's shm_open calls (returns ESRCH). Point TMPDIR
+// at a plain directory under the user's XDG_CACHE_HOME instead.
+const xdgCache = process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache');
+const electronTmp = path.join(xdgCache, 'whatsuck', 'tmp');
+fs.mkdirSync(electronTmp, { recursive: true });
+process.env.TMPDIR = electronTmp;
 
 let mainWindow = null;
 
