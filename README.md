@@ -8,8 +8,10 @@ A native Ubuntu desktop client for [WhatsApp Web](https://web.whatsapp.com). Wra
 - **Pin to desktop** – Any profile can be pinned to the application menu. A `.desktop` file is generated so the profile appears as "Whatsuck (Work)" in GNOME/KDE and can be launched directly.
 - **Default profile** – Choose which profile opens when you launch Whatsuck without arguments. `whatsuck --profile=work` opens a specific profile from the command line.
 - **Native notifications** – Incoming messages appear in the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon. Clicking a notification focuses the main window.
+- **Auto-update** – On startup the app checks GitHub for a new release, downloads it in the background, and prompts to restart. Updates install automatically on next quit. No manual `.deb` downloading needed after the first install.
+- **Browser staleness warning** – Chromium (the rendering engine inside Electron) does not auto-update between app releases. If the bundled version falls 2+ major versions behind the latest stable Chrome, the app shows a one-time warning with a link to the releases page.
+- **External links open in your browser** – Links in WhatsApp messages open in the OS default browser (Firefox, Chrome, etc.), not inside the app window.
 - **OS keyring integration** – Session cookies are encrypted with your system keyring (libsecret / GNOME Keyring / KWallet) when available. You'll get a one-time warning at startup if no keyring is detected.
-- **Update checker** – On startup the app queries GitHub releases and notifies you when a new version is available. Skipped during `npm start` to avoid noise.
 - **Real `.deb` package** – Install with `dpkg`, uninstall with `apt remove`. Registers a `.desktop` file so the app appears in your app menu.
 - **Auto-hide menu bar** – The app menu is hidden by default; press `Alt` to reveal it. `F12` opens DevTools, `Ctrl+R` reloads, `Ctrl+N` opens a new window for the current profile.
 
@@ -80,6 +82,12 @@ Who can read this:
 
 The keyring check on first launch will warn you if `libsecret` / `gnome-keyring` / `kwallet` is missing, with a one-click link to install instructions. The app runs either way — the warning is informational.
 
+## Browser engine updates
+
+Electron bundles its own Chromium build. Unlike a normal Chrome install, the bundled browser does **not** auto-update — it only updates when the maintainer bumps the Electron version and publishes a new app release. The auto-update mechanism (above) takes care of that: when a new release ships a newer Chromium, every user gets it within a session or two of next launch.
+
+If the bundled Chromium falls 2+ major versions behind the latest stable Chrome, the app shows a one-time notice at startup with a link to the releases page. This is informational; it doesn't block the app from running.
+
 ## Install
 
 Download the latest release, or build it yourself (see below), then:
@@ -131,14 +139,15 @@ Produces `dist/whatsuck_1.0.0_amd64.deb`. Build size is ~85 MB because the whole
 ```
 src/
 ├── main.js           # Entry point: app lifecycle, CLI switches, multi-window orchestration
-├── window.js         # BrowserWindow factory, per-profile partitions, UA spoofing
+├── window.js         # BrowserWindow factory, per-profile partitions, UA spoofing, external links
 ├── profiles.js       # Profile metadata store (load, save, create, delete, rename, setDefault)
 ├── desktop.js        # Per-profile .desktop file generation and cleanup
 ├── profile-dialog.js # Modal text input dialog (New Profile / Rename)
 ├── menu.js           # App menu (File, Profiles, Edit, View)
 ├── notifications.js  # In-page Notification → OS notification bridge
 ├── security.js       # OS keyring availability check + user warning
-├── updater.js        # GitHub releases check + update dialog
+├── updater.js        # Auto-update via electron-updater (download + install on quit)
+├── browser-check.js  # Chromium staleness check (warns if 2+ major versions behind)
 └── constants.js      # Frozen config object (URL, dimensions, paths)
 build/
 ├── afterPack.js      # electron-builder hook: replaces binary with wrapper
