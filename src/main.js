@@ -11,14 +11,13 @@ const { checkForUpdates } = require('./updater');
 const { checkBrowserStaleness } = require('./browser-check');
 const { loadProfiles, getActiveProfileId, saveProfiles } = require('./profiles');
 const { syncDesktopFiles } = require('./desktop');
-const { createTray, destroyTray, focusExistingWindows } = require('./tray');
+const { createTray, destroyTray, focusExistingWindows, getTray } = require('./tray');
 
 // Track windows by profile id, since multiple windows can coexist.
 const windowsByProfile = new Map();
 
-// Whether closing a window should quit the app. When the tray is
-// active, the user closing the last window means "hide to tray",
-// not "quit". The only path to quit is the tray's Quit menu.
+// Whether the user explicitly asked to quit (tray Quit, File > Quit).
+// When false, the close button hides to tray instead of quitting.
 let isQuitting = false;
 
 // Resolve the profile to open on this launch.
@@ -35,6 +34,18 @@ if (initialProfileId !== 'default') {
   app.commandLine.appendSwitch('class', `whatsuck-${initialProfileId}`);
 }
 
+// --- Single instance ---
+// If the user clicks the app launcher while Whatsuck is already
+// running (hidden in tray), we want to focus the existing window
+// instead of opening a second instance. requestSingleInstanceLock
+// makes the OS send a 'second-instance' event to the first process.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  // Another instance is already running. Tell it to show its
+  // windows, then exit this one immediately.
+  app.quit();
+}
+
 function registerWindow(win) {
   windowsByProfile.set(win._profileId, win);
   win.on('closed', () => {
@@ -43,11 +54,10 @@ function registerWindow(win) {
 }
 
 /**
- * Open a window for a given profile. If one is already open, focus it.
+ * Open a window for a given profile. If one is already open, show it.
  */
 function openProfile(profileId) {
   if (profileId === 'default') {
-    // Ensure the default profile exists in profiles.json.
     const profiles = loadProfiles();
     if (!profiles.some(p => p.id === 'default')) {
       profiles.unshift({ id: 'default', name: 'Personal', isDefault: true, isPinned: false });
@@ -58,6 +68,7 @@ function openProfile(profileId) {
   if (existing && !existing.isDestroyed()) {
     if (existing.isMinimized()) existing.restore();
     existing.show();
+    existing.focus();
     return existing;
   }
 
@@ -70,7 +81,7 @@ function openProfile(profileId) {
   // unless the user explicitly chose Quit.
   win.on('close', (event) => {
     if (isQuitting) return; // allow close during real quit
-    if (!trayExists()) return; // no tray → behave normally
+    if (!getTray()) return; // no tray → behave normally (close = quit)
     event.preventDefault();
     win.hide();
   });
@@ -78,17 +89,6 @@ function openProfile(profileId) {
   registerWindow(win);
   attachNotificationBridge(win);
   return win;
-}
-
-function trayExists() {
-  // The tray module returns a singleton. If createTray has been
-  // called and not yet destroyed, the tray is active.
-  try {
-    const { getTray } = require('./tray');
-    return getTray() !== null;
-  } catch {
-    return false;
-  }
 }
 
 function quitApp() {
@@ -107,8 +107,6 @@ function bootstrap() {
   });
 
   // Create the tray so closing the window keeps the app alive.
-  // The tray icon gives the user a way back in (left click to
-  // restore) and out (right-click → Quit).
   createTray(quitApp);
 
   const primary = windowsByProfile.get(initialProfileId);
@@ -123,14 +121,18 @@ function bootstrap() {
 
 app.whenReady().then(bootstrap);
 
+// Second instance: the user clicked the launcher again. Show the
+// existing windows instead of doing nothing.
+app.on('second-instance', () => {
+  focusExistingWindows();
+});
+
 // With the tray active, "all windows closed" is not a quit signal.
-// The tray remains. Only explicit Quit (tray menu, or the in-app
-// menu's Quit role) ends the process.
+// The tray remains. Only explicit Quit (tray menu, File > Quit)
+// ends the process.
 app.on('window-all-closed', (e) => {
   if (process.platform === 'darwin') return;
   if (!isQuitting) {
-    // Prevent the default app-quit behavior. The user can still
-    // quit via the tray menu.
     e.preventDefault();
   }
 });

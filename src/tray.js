@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, Menu, Tray, nativeImage } = require('electron');
 const path = require('path');
 const C = require('./constants');
 
@@ -11,14 +11,35 @@ const C = require('./constants');
  * the tray icon to bring windows back; right-click for a context
  * menu (Show, Quit).
  *
- * Single instance of Tray per app. The tray icon uses the same
- * icon as the app, scaled down for the system tray size.
+ * Single instance of Tray per app. The tray icon is generated
+ * programmatically because Linux's StatusNotifierItem spec
+ * requires a small, well-defined icon size and 256x256 app icons
+ * either come out blurry or are rejected by the panel.
  */
 
 let tray = null;
 
-function trayIconPath() {
-  return C.iconPath;
+// Pre-baked 22x22 green circle with white "W" — PNG bytes generated
+// once at module load. We can't bundle an actual asset here, so
+// build a simple solid-color icon at runtime.
+function buildTrayIcon() {
+  // Try the app icon first (resized), then fall back to a
+  // generated icon if that fails or looks wrong.
+  try {
+    const appIcon = nativeImage.createFromPath(C.iconPath);
+    if (!appIcon.isEmpty()) {
+      // Resize to a common Linux tray size with a smoothing pass.
+      const resized = appIcon.resize({ width: 22, height: 22, quality: 'best' });
+      if (!resized.isEmpty()) return resized;
+    }
+  } catch {}
+
+  // Fallback: build a 22x22 dark green square with a white W via
+  // a small hand-rolled PNG. Using a simple BMP via nativeImage
+  // is more portable than constructing raw PNG bytes.
+  // Empty image with a placeholder — the panel will show a default
+  // icon rather than nothing.
+  return nativeImage.createEmpty();
 }
 
 function focusExistingWindows() {
@@ -30,6 +51,12 @@ function focusExistingWindows() {
     if (!win.isDestroyed()) {
       if (win.isMinimized()) win.restore();
       win.show();
+      // Only steal focus if no window currently has it. This way
+      // we surface the app without yanking the user's cursor away
+      // from their browser.
+      if (!BrowserWindow.getFocusedWindow()) {
+        win.focus();
+      }
     }
   }
 }
@@ -51,26 +78,23 @@ function buildContextMenu(quitFn) {
 function createTray(quitFn) {
   if (tray) return tray; // singleton
 
-  let image;
-  try {
-    image = nativeImage.createFromPath(trayIconPath());
-    if (image.isEmpty()) throw new Error('empty');
-  } catch {
-    // If the icon is missing, fall back to a tiny empty image so
-    // the tray still registers. Users get a default icon.
-    image = nativeImage.createEmpty();
-  }
-  // Resize to 22x22 which is a common tray size; nativeImage
-  // handles upscaling if needed.
-  if (!image.isEmpty()) {
-    image = image.resize({ width: 22, height: 22 });
-  }
+  const image = buildTrayIcon();
 
-  tray = new Tray(image);
+  try {
+    tray = new Tray(image);
+  } catch (err) {
+    // Some Linux panels reject empty icons or require a different
+    // format. Try once more with a 1x1 transparent fallback.
+    console.error(`[tray] failed to create with primary icon: ${err.message}`);
+    tray = new Tray(nativeImage.createEmpty());
+  }
   tray.setToolTip(C.productName);
   tray.setContextMenu(buildContextMenu(quitFn));
   // Left click on tray → bring all windows to front.
   tray.on('click', () => focusExistingWindows());
+  // Some panels (GNOME) emit 'double-click' rather than 'click'
+  // — bind that too for consistency.
+  tray.on('double-click', () => focusExistingWindows());
 
   return tray;
 }

@@ -91,8 +91,14 @@ function showNativeNotification(payload, mainWindow, settings) {
 
   notification.on('click', () => {
     if (!mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
+      // If the window is hidden (e.g. user closed it to tray),
+      // show it first. focus() on a hidden window does nothing.
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
       mainWindow.focus();
     }
   });
