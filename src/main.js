@@ -77,13 +77,25 @@ function openProfile(profileId) {
     onClosed: () => {},
   });
 
-  // Intercept the close button: hide to tray instead of quitting,
-  // unless the user explicitly chose Quit.
+  // Intercept the close button:
+  //   - If tray works → hide to tray
+  //   - If tray is unavailable → minimize to dock (window stays
+  //     visible in the taskbar as a minimized icon)
+  //   - If user explicitly chose Quit → allow close
   win.on('close', (event) => {
-    if (isQuitting) return; // allow close during real quit
-    if (!getTray()) return; // no tray → behave normally (close = quit)
-    event.preventDefault();
-    win.hide();
+    if (isQuitting) return;
+    const tray = getTray();
+    if (tray) {
+      event.preventDefault();
+      win.hide();
+    } else {
+      // No tray: minimize instead of closing. The app stays
+      // visible in the dock/taskbar so the user can restore it.
+      // The window-all-closed event won't fire because we don't
+      // actually close.
+      event.preventDefault();
+      win.minimize();
+    }
   });
 
   registerWindow(win);
