@@ -133,7 +133,7 @@ function bootstrap() {
 app.whenReady().then(bootstrap);
 
 // Second instance: the user clicked the launcher again. Show the
-// existing windows instead of opening new ones.
+// existing windows and steal focus.
 app.on('second-instance', (_event, argv) => {
   // If the user passed --profile=work, try to show that specific window.
   const match = argv.find((a) => a.startsWith('--profile='));
@@ -145,7 +145,6 @@ app.on('second-instance', (_event, argv) => {
       return;
     }
   }
-  // Otherwise just bring all windows to the front.
   focusExistingWindows();
 });
 

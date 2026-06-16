@@ -6,31 +6,29 @@ const C = require('./constants');
 /**
  * System tray integration.
  *
- * On Linux (GNOME/KDE), tray icons are unreliable:
- * - GNOME 41+ needs the AppIndicator extension
- * - Wayland sessions often don't render tray icons
- * - Some panels ignore nativeImage.createFromPath
- *
- * We try to create the tray, but if it fails we fall back to
- * "minimize to dock" behavior. The caller (main.js) checks
- * getTray() — if null, close = quit instead of hide.
+ * On Linux the tray is unreliable (GNOME Wayland, missing
+ * AppIndicator extension). If Tray creation fails we return
+ * null and main.js falls back to minimize-to-dock behavior.
  */
 
 let tray = null;
 
 function focusExistingWindows() {
   const wins = BrowserWindow.getAllWindows();
+  if (wins.length === 0) return;
+
   for (const win of wins) {
-    if (!win.isDestroyed()) {
-      if (win.isMinimized()) win.restore();
-      win.show();
-    }
+    if (win.isDestroyed()) continue;
+    // show() before restore/focus — a hidden window can't be focused.
+    if (!win.isVisible()) win.show();
+    if (win.isMinimized()) win.restore();
   }
-  // Steal focus so the user sees the window immediately.
-  const focused = BrowserWindow.getFocusedWindow();
-  if (!focused && wins.length > 0) {
-    const last = wins[wins.length - 1];
-    if (!last.isDestroyed()) last.focus();
+
+  // Steal focus to the last window. The user clicked a button
+  // (tray, launcher, notification) — they want the app in front.
+  const last = wins[wins.length - 1];
+  if (!last.isDestroyed()) {
+    last.focus();
   }
 }
 
@@ -48,10 +46,6 @@ function buildContextMenu(quitFn) {
   ]);
 }
 
-/**
- * Try to create a system tray icon. Returns the Tray on success,
- * or null if the tray isn't available (common on GNOME Wayland).
- */
 function createTray(quitFn) {
   if (tray) return tray;
 
@@ -61,7 +55,6 @@ function createTray(quitFn) {
     if (image.isEmpty()) throw new Error('icon empty');
     image = image.resize({ width: 22, height: 22, quality: 'best' });
   } catch {
-    // Can't load or resize the icon — tray won't work on this system.
     console.log('[tray] icon unavailable, tray disabled');
     return null;
   }
