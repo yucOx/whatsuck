@@ -8,14 +8,16 @@ the renderer should never have any more power than a regular Chrome tab.
 
 ```
 src/
-├── main.js                  # Entry point. App lifecycle, multi-window orchestration.
+├── main.js                  # Entry point. App lifecycle, single-instance, multi-window.
 ├── window.js                 # BrowserWindow factory. UA spoofing, external links.
 ├── profiles.js               # Profile metadata store (profiles.json).
 ├── desktop.js                # Per-profile .desktop file management.
 ├── profile-dialog.js         # Modal text input (New Profile, Rename).
 ├── profile-dialog-preload.js # Preload script — contextBridge, no nodeIntegration.
-├── menu.js                   # Application menu (File, Profiles, Edit, View).
-├── notifications.js          # In-page → OS notification bridge.
+├── menu.js                   # Application menu (File, Profiles, Edit, View, Settings).
+├── notifications.js          # In-page → OS notification bridge (rate-limited, settings-aware).
+├── settings.js                # User settings store (settings.json — notifications enabled/sound).
+├── tray.js                   # System tray icon (Show/Quit, fallback to minimize-to-dock).
 ├── security.js               # OS keyring availability check.
 ├── updater.js                # Auto-update via electron-updater.
 ├── browser-check.js          # Chromium staleness warning.
@@ -24,6 +26,8 @@ build/
 └── afterPack.js              # electron-builder hook: wrapper script generator.
 .github/workflows/
 └── release.yml               # Auto-build .deb on v* tag push.
+setup.sh                      # One-command install (downloads from GitHub releases).
+uninstall.sh                  # Interactive uninstaller (asks about data deletion).
 ```
 
 Total ~700 LOC. No transpilation, no bundler — Electron runs plain Node.js.

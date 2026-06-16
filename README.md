@@ -50,7 +50,15 @@ The headline feature is **multiple WhatsApp accounts at once**. Each profile is 
 - **Pin to desktop** — pin any profile to your app menu as "Whatsuck (Work)"
 - **Default profile** — choose which account opens on bare launch
 - **Real notifications** — incoming messages hit the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon
+- **Notification settings** — toggle notifications on/off, and sound on/off, from the Settings menu
 - **External links** — URLs in chat open in your default browser, not inside the app
+
+### 🖥️ System integration
+
+- **System tray** — close the window to keep the app running in the background; click the tray icon to bring it back
+- **Single instance** — clicking the app launcher again focuses the existing window instead of opening a duplicate
+- **Minimize-to-dock** — on systems without a working tray (GNOME Wayland), closing the window minimizes to the taskbar instead of quitting
+- **External links** — URLs open in your default browser, not inside the app
 
 ### 🔐 Security
 

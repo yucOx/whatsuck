@@ -50,7 +50,15 @@ Tarayıcı sekmesinde WhatsApp Web işin %90'ını görür — geri kalan %10'u 
 - **Masaüstüne sabitle** — istediğin profili "Whatsuck (İş)" olarak uygulama menüsüne pinle
 - **Varsayılan profil** — `whatsuck` açtığında hangi hesap gelsin sen seç
 - **Gerçek bildirimler** — gelen mesajlar OS bildirim merkezine (libnotify / GNOME / KDE) Whatsuck ikonuyla düşer
+- **Bildirim ayarları** — Settings menüsünden bildirimleri ve sesi açıp kapatabilirsin
 - **Dış linkler** — sohbetteki URL'ler uygulama içinde değil, varsayılan tarayıcıda açılır
+
+### 🖥️ Sistem entegrasyonu
+
+- **Sistem tepsisi** — pencereyi kapat uygulama arka planda çalışır; tepsiden geri getir
+- **Tek instance** — uygulama launcher'a tekrar tıklayınca yeni pencere açmak yerine mevcut pencereyi gösterir
+- **Dock'a küçült** — tepsinin çalışmadığı sistemlerde (GNOME Wayland) pencereyi kapatmak görev çubuğuna küçültür
+- **Dış linkler** — URL'ler varsayılan tarayıcıda açılır
 
 ### 🔐 Güvenlik
 
