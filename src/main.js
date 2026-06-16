@@ -78,22 +78,19 @@ function openProfile(profileId) {
   });
 
   // Intercept the close button:
-  //   - If tray works → hide to tray
-  //   - If tray is unavailable → minimize to dock (window stays
-  //     visible in the taskbar as a minimized icon)
+  //   - If tray works → hide to tray (invisible, click tray to restore)
+  //   - If tray unavailable → minimize to dock (window icon visible
+  //     in the taskbar, click to restore)
   //   - If user explicitly chose Quit → allow close
   win.on('close', (event) => {
     if (isQuitting) return;
+    event.preventDefault();
     const tray = getTray();
     if (tray) {
-      event.preventDefault();
       win.hide();
     } else {
-      // No tray: minimize instead of closing. The app stays
-      // visible in the dock/taskbar so the user can restore it.
-      // The window-all-closed event won't fire because we don't
-      // actually close.
-      event.preventDefault();
+      // Make sure the window stays in the taskbar even when minimized.
+      win.setSkipTaskbar(false);
       win.minimize();
     }
   });
@@ -110,6 +107,8 @@ function quitApp() {
 }
 
 function bootstrap() {
+  // Only the default profile opens on launch. Other profiles are
+  // opened explicitly via the menu or CLI flag.
   openProfile(initialProfileId);
 
   installAppMenu({
@@ -134,8 +133,19 @@ function bootstrap() {
 app.whenReady().then(bootstrap);
 
 // Second instance: the user clicked the launcher again. Show the
-// existing windows instead of doing nothing.
-app.on('second-instance', () => {
+// existing windows instead of opening new ones.
+app.on('second-instance', (_event, argv) => {
+  // If the user passed --profile=work, try to show that specific window.
+  const match = argv.find((a) => a.startsWith('--profile='));
+  if (match) {
+    const { PROFILE_ID_RE } = require('./profiles');
+    const id = match.split('=')[1];
+    if (PROFILE_ID_RE.test(id)) {
+      openProfile(id);
+      return;
+    }
+  }
+  // Otherwise just bring all windows to the front.
   focusExistingWindows();
 });
 
