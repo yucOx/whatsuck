@@ -107,7 +107,7 @@ Kurulum scripti sizin için her şeyi yapar:
 ### Manuel kurulum
 
 ```bash
-sudo dpkg -i whatsuck_1.0.0_amd64.deb
+sudo dpkg -i whatsuck_1.0.1_amd64.deb
 sudo apt-get install -f   # eksik bağımlılıkları tamamla
 ```
 
@@ -204,7 +204,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install
 npm start        # geliştirme modu (auto-update ve keyring atlanır)
-npm run build    # dist/whatsuck_1.0.0_amd64.deb üretir
+npm run build    # dist/whatsuck_1.0.1_amd64.deb üretir
 ```
 
 Modül haritası için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bakın.
