@@ -30,7 +30,14 @@ function attachNotificationBridge(mainWindow) {
   });
 
   let lastNotificationTime = 0;
-  const onNotification = (_event, payload) => {
+  const onNotification = (event, payload) => {
+    // Suppress the renderer's own native notification. Without this,
+    // Electron displays WhatsApp's Notification regardless of our
+    // settings, so "Notifications Enabled: off" had no effect, and
+    // the auto-shown popup carried no click handler (issue: clicking
+    // it sometimes did nothing). We take over display entirely.
+    event.preventDefault();
+
     const settings = loadSettings();
 
     // Master switch — user can turn off all OS notifications.
@@ -77,16 +84,13 @@ function showNativeNotification(payload, mainWindow, settings) {
   notification.on('click', () => {
     if (mainWindow.isDestroyed()) return;
 
-    // Show the window FIRST, then restore/focus. Order matters:
-    // calling focus() on a hidden window does nothing.
-    if (!mainWindow.isVisible()) {
-      mainWindow.show();
-    }
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
-    // Always steal focus — the user clicked the notification,
-    // they want to see the message.
+    // Order matters: focus() on a hidden window is a no-op, so
+    // restore/show first. moveTop() forces a raise on Linux where
+    // focus() alone can be blocked by focus-stealing prevention.
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.setSkipTaskbar(false);
+    mainWindow.moveTop();
     mainWindow.focus();
   });
 

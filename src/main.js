@@ -54,6 +54,24 @@ function registerWindow(win) {
 }
 
 /**
+ * Send Esc to the WhatsApp page so the open conversation is
+ * deselected. Keeps the user from appearing "in" a chat after the
+ * window hides. Must run while the window still has focus —
+ * sendInputEvent is a no-op on an unfocused window — so call before
+ * hide()/minimize().
+ */
+function deselectChat(win) {
+  try {
+    const wc = win.webContents;
+    if (!wc || wc.isDestroyed()) return;
+    wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  } catch (err) {
+    console.error(`[main] failed to deselect chat: ${err.message}`);
+  }
+}
+
+/**
  * Open a window for a given profile. If one is already open, show it.
  */
 function openProfile(profileId) {
@@ -87,6 +105,10 @@ function openProfile(profileId) {
     event.preventDefault();
     const tray = getTray();
     if (tray) {
+      // hide() does not fire 'minimize', so deselect here while still
+      // focused. The minimize() path lets the 'minimize' handler do it
+      // (avoids a double Esc).
+      deselectChat(win);
       win.hide();
     } else {
       // Make sure the window stays in the taskbar even when minimized.
@@ -95,9 +117,30 @@ function openProfile(profileId) {
     }
   });
 
+  // Covers the taskbar minimize button and the no-tray close path
+  // above (minimize() fires this event). Best-effort: the window may
+  // already be losing focus.
+  win.on('minimize', () => deselectChat(win));
+
   registerWindow(win);
   attachNotificationBridge(win);
   return win;
+}
+
+/**
+ * Show one profile at a time: focus (or create) the target window
+ * and hide every other profile window. Makes the Profiles menu act
+ * as a switcher instead of opening profiles side by side.
+ */
+function switchToProfile(profileId) {
+  const target = openProfile(profileId);
+  for (const [id, win] of windowsByProfile) {
+    if (id === profileId) continue;
+    if (win && !win.isDestroyed() && win.isVisible()) {
+      win.hide();
+    }
+  }
+  return target;
 }
 
 function quitApp() {
@@ -114,6 +157,7 @@ function bootstrap() {
   installAppMenu({
     currentWindow: () => BrowserWindow.getFocusedWindow() || null,
     openProfile,
+    switchToProfile,
     quitApp,
   });
 
@@ -171,4 +215,4 @@ app.on('before-quit', () => {
   destroyTray();
 });
 
-module.exports = { openProfile, windowsByProfile };
+module.exports = { openProfile, switchToProfile, windowsByProfile };

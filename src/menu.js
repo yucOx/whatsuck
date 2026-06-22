@@ -20,7 +20,7 @@ const { loadSettings, saveSettings } = require('./settings');
  * @param {Function} options.currentWindow  - Returns the focused BrowserWindow.
  * @param {Function} options.openProfile    - Opens a new window for a profile.
  */
-function installAppMenu({ currentWindow, openProfile, quitApp } = {}) {
+function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp } = {}) {
   function rebuildMenu() {
     const win = currentWindow ? currentWindow() : null;
     const currentProfileId = win ? win._profileId : 'default';
@@ -33,8 +33,10 @@ function installAppMenu({ currentWindow, openProfile, quitApp } = {}) {
       type: 'radio',
       checked: p.id === currentProfileId,
       click: () => {
-        if (p.id !== currentProfileId && openProfile) {
-          openProfile(p.id);
+        if (p.id !== currentProfileId) {
+          // Switch, not stack: show this profile, hide the others.
+          if (switchToProfile) switchToProfile(p.id);
+          else if (openProfile) openProfile(p.id);
         }
       },
     }));
@@ -59,7 +61,8 @@ function installAppMenu({ currentWindow, openProfile, quitApp } = {}) {
                 generateDesktopFile(profile, app.getPath('exe'));
               }
               rebuildMenu();
-              if (openProfile) openProfile(profile.id);
+              if (switchToProfile) switchToProfile(profile.id);
+              else if (openProfile) openProfile(profile.id);
             } catch (err) {
               dialog.showErrorBox(
                 'Could not create profile',
