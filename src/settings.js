@@ -18,6 +18,27 @@ const DEFAULTS = Object.freeze({
     enabled: true,
     // Play a sound with each notification.
     sound: true,
+    // Min ms between two native notifications. Stops a page from
+    // flooding the OS notification daemon. Mirrors the default in
+    // constants.js so the constant remains the single source of the
+    // default value; this is the user-overridable copy.
+    cooldownMs: 1000,
+  },
+  // Which profile opens on launch. 'default' or an existing profile id.
+  // CLI `--profile=<id>` always wins over this when present.
+  startup: {
+    profileId: 'default',
+  },
+  // Send Esc to the WhatsApp page on minimize/hide so the open
+  // conversation is deselected (user doesn't appear "in" a chat).
+  minimize: {
+    escToDeselect: true,
+  },
+  // What the window close (X) button does.
+  //   'hideToTray' — hide to tray / minimize (keeps app alive).
+  //   'quit'       — actually quit the app.
+  closeButton: {
+    behavior: 'hideToTray',
   },
 });
 

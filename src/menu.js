@@ -20,7 +20,14 @@ const { loadSettings, saveSettings } = require('./settings');
  * @param {Function} options.currentWindow  - Returns the focused BrowserWindow.
  * @param {Function} options.openProfile    - Opens a new window for a profile.
  */
-function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp } = {}) {
+function installAppMenu({ currentWindow, openProfile, switchToProfile, openSettingsWindow, onProfilesChanged, quitApp } = {}) {
+  // Rebuild app menu + tray after profile mutations; falls back to
+  // app-menu-only rebuild when no onProfilesChanged was passed.
+  const profilesChanged = () => {
+    if (onProfilesChanged) onProfilesChanged();
+    else rebuildMenu();
+  };
+
   function rebuildMenu() {
     const win = currentWindow ? currentWindow() : null;
     const currentProfileId = win ? win._profileId : 'default';
@@ -65,7 +72,7 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp }
               if (app.isPackaged) {
                 generateDesktopFile(profile, app.getPath('exe'));
               }
-              rebuildMenu();
+              profilesChanged();
               if (switchToProfile) switchToProfile(profile.id);
               else if (openProfile) openProfile(profile.id);
             } catch (err) {
@@ -92,7 +99,7 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp }
               const updated = loadProfiles().find(p => p.id === currentProfileId);
               if (updated) generateDesktopFile(updated, app.getPath('exe'));
             }
-            rebuildMenu();
+            profilesChanged();
           },
         },
         {
@@ -115,7 +122,7 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp }
             removeDesktopFile(current);
             // Close the window for the deleted profile.
             if (win && !win.isDestroyed()) win.close();
-            rebuildMenu();
+            profilesChanged();
           },
         },
         { type: 'separator' },
@@ -144,7 +151,7 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp }
             } else {
               removeDesktopFile(p);
             }
-            rebuildMenu();
+            profilesChanged();
           },
         },
       ],
@@ -225,6 +232,13 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp }
         label: 'Settings',
         submenu: [
           {
+            label: 'Open Settings…',
+            click: () => {
+              if (openSettingsWindow) openSettingsWindow(win);
+            },
+          },
+          { type: 'separator' },
+          {
             label: 'Notifications Enabled',
             type: 'checkbox',
             checked: loadSettings().notifications.enabled,
@@ -232,6 +246,7 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp }
               const s = loadSettings();
               s.notifications.enabled = item.checked;
               saveSettings(s);
+              rebuildMenu();
             },
           },
           {
@@ -244,6 +259,26 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp }
               s.notifications.sound = item.checked;
               saveSettings(s);
               rebuildMenu();
+            },
+          },
+          {
+            label: 'Esc on Minimize',
+            type: 'checkbox',
+            checked: loadSettings().minimize.escToDeselect,
+            click: (item) => {
+              const s = loadSettings();
+              s.minimize.escToDeselect = item.checked;
+              saveSettings(s);
+            },
+          },
+          {
+            label: 'Close Button Quits',
+            type: 'checkbox',
+            checked: loadSettings().closeButton.behavior === 'quit',
+            click: (item) => {
+              const s = loadSettings();
+              s.closeButton.behavior = item.checked ? 'quit' : 'hideToTray';
+              saveSettings(s);
             },
           },
         ],

@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 
 const C = require('./constants');
 const { createMainWindow } = require('./window');
@@ -9,9 +9,11 @@ const { attachNotificationBridge } = require('./notifications');
 const { checkKeyringAndWarn } = require('./security');
 const { checkForUpdates } = require('./updater');
 const { checkBrowserStaleness } = require('./browser-check');
-const { loadProfiles, getActiveProfileId, saveProfiles } = require('./profiles');
+const { loadProfiles, saveProfiles, PROFILE_ID_RE } = require('./profiles');
 const { syncDesktopFiles } = require('./desktop');
-const { createTray, destroyTray, getTray } = require('./tray');
+const { createTray, destroyTray, refreshTrayMenu, getTray } = require('./tray');
+const { loadSettings, saveSettings } = require('./settings');
+const { openSettingsWindow } = require('./settings-window');
 
 // Track windows by profile id, since multiple windows can coexist.
 const windowsByProfile = new Map();
@@ -25,13 +27,39 @@ let isQuitting = false;
 // the 'focus' listener below is safe to register at any time.
 let refreshMenu = () => {};
 
+/**
+ * Resolve which profile to open on launch. CLI `--profile=<id>` wins;
+ * otherwise the user's Settings → startup.profileId; otherwise the
+ * marked-default profile, then 'default'. Invalid ids fall through.
+ *
+ * @param {string[]} [argv]
+ * @returns {string}
+ */
+function resolveInitialProfileId(argv) {
+  const a = argv || process.argv;
+  const cli = a.find((x) => x.startsWith('--profile='));
+  if (cli) {
+    const id = cli.split('=')[1];
+    if (PROFILE_ID_RE.test(id) && loadProfiles().some((p) => p.id === id)) {
+      return id;
+    }
+    console.warn(`[main] ignoring invalid --profile="${id}"`);
+  }
+  const sid = loadSettings().startup.profileId;
+  if (sid && PROFILE_ID_RE.test(sid) && loadProfiles().some((p) => p.id === sid)) {
+    return sid;
+  }
+  const def = loadProfiles().find((p) => p.isDefault);
+  return def ? def.id : 'default';
+}
+
+// Resolve the profile to open on this launch.
+const initialProfileId = resolveInitialProfileId(process.argv);
+
 // The profile the user last interacted with. Used by tray "Show" and
 // second-instance so we restore ONE window (the active profile), not
 // every hidden profile window at once.
 let lastActiveProfileId = initialProfileId;
-
-// Resolve the profile to open on this launch.
-const initialProfileId = getActiveProfileId(process.argv);
 
 // Apply CLI switches before app is ready.
 for (const sw of C.cliSwitches) {
@@ -120,13 +148,22 @@ function openProfile(profileId) {
   //   - If user explicitly chose Quit → allow close
   win.on('close', (event) => {
     if (isQuitting) return;
+    const settings = loadSettings();
+    // User option: X quits the app instead of hiding to tray.
+    if (settings.closeButton.behavior === 'quit') {
+      event.preventDefault();
+      quitApp();
+      return;
+    }
     event.preventDefault();
-    const tray = getTray();
-    if (tray) {
+    if (settings.minimize.escToDeselect) {
       // hide() does not fire 'minimize', so deselect here while still
       // focused. The minimize() path lets the 'minimize' handler do it
       // (avoids a double Esc).
       deselectChat(win);
+    }
+    const tray = getTray();
+    if (tray) {
       win.hide();
     } else {
       // Make sure the window stays in the taskbar even when minimized.
@@ -138,7 +175,9 @@ function openProfile(profileId) {
   // Covers the taskbar minimize button and the no-tray close path
   // above (minimize() fires this event). Best-effort: the window may
   // already be losing focus.
-  win.on('minimize', () => deselectChat(win));
+  win.on('minimize', () => {
+    if (loadSettings().minimize.escToDeselect) deselectChat(win);
+  });
 
   registerWindow(win);
   attachNotificationBridge(win);
@@ -171,11 +210,36 @@ function showActiveProfile() {
   return switchToProfile(lastActiveProfileId);
 }
 
+/**
+ * Refresh both the app menu and the tray context menu. Call after
+ * profile create/rename/delete/pin and after settings save.
+ */
+function refreshAllMenus() {
+  refreshMenu();
+  refreshTrayMenu();
+}
+
 function quitApp() {
   isQuitting = true;
   destroyTray();
   app.quit();
 }
+
+// Settings window IPC: the preload (settings-preload.js) invokes these.
+ipcMain.handle('settings-get', () => ({
+  settings: loadSettings(),
+  profiles: loadProfiles(),
+}));
+ipcMain.handle('settings-save', (_event, s) => {
+  try {
+    saveSettings(s);
+  } catch (err) {
+    console.error(`[main] settings save failed: ${err.message}`);
+    return false;
+  }
+  refreshAllMenus();
+  return true;
+});
 
 function bootstrap() {
   // Only the default profile opens on launch. Other profiles are
@@ -188,12 +252,19 @@ function bootstrap() {
     currentWindow: () => BrowserWindow.getFocusedWindow() || null,
     openProfile,
     switchToProfile,
+    openSettingsWindow,
+    onProfilesChanged: refreshAllMenus,
     quitApp,
   }).rebuildMenu;
 
   // Create the tray so closing the window keeps the app alive. Pass a
-  // show handler that restores only the active profile window, not all.
-  createTray(quitApp, showActiveProfile);
+  // show handler that restores only the active profile window, and a
+  // per-profile list so the user can switch from the tray directly.
+  createTray(quitApp, showActiveProfile, {
+    getProfiles: loadProfiles,
+    switchProfile: switchToProfile,
+    getActiveId: () => lastActiveProfileId,
+  });
 
   const primary = windowsByProfile.get(initialProfileId);
   if (primary) {

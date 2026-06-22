@@ -12,6 +12,7 @@ const C = require('./constants');
  */
 
 let tray = null;
+let trayArgs = null;
 
 function focusExistingWindows() {
   const wins = BrowserWindow.getAllWindows();
@@ -32,22 +33,39 @@ function focusExistingWindows() {
   }
 }
 
-function buildContextMenu(quitFn, showFn) {
-  return Menu.buildFromTemplate([
+function buildContextMenu(quitFn, showFn, opts) {
+  const { getProfiles, switchProfile, getActiveId } = opts || {};
+  const items = [
     {
       label: 'Show',
       click: () => (showFn ? showFn() : focusExistingWindows()),
     },
     { type: 'separator' },
-    {
-      label: 'Quit',
-      click: () => quitFn(),
-    },
-  ]);
+  ];
+
+  if (typeof getProfiles === 'function' && typeof switchProfile === 'function') {
+    const activeId = typeof getActiveId === 'function' ? getActiveId() : null;
+    for (const p of getProfiles()) {
+      items.push({
+        label: p.name + (p.isDefault ? ' (default)' : ''),
+        type: 'radio',
+        checked: p.id === activeId,
+        click: () => switchProfile(p.id),
+      });
+    }
+    items.push({ type: 'separator' });
+  }
+
+  items.push({
+    label: 'Quit',
+    click: () => quitFn(),
+  });
+  return Menu.buildFromTemplate(items);
 }
 
-function createTray(quitFn, showFn) {
+function createTray(quitFn, showFn, opts) {
   if (tray) return tray;
+  trayArgs = { quitFn, showFn, opts };
 
   let image;
   try {
@@ -63,7 +81,7 @@ function createTray(quitFn, showFn) {
   try {
     tray = new Tray(image);
     tray.setToolTip(C.productName);
-    tray.setContextMenu(buildContextMenu(quitFn, showFn));
+    tray.setContextMenu(buildContextMenu(quitFn, showFn, opts));
     tray.on('click', onClick);
     tray.on('double-click', onClick);
     console.log('[tray] system tray created');
@@ -75,11 +93,30 @@ function createTray(quitFn, showFn) {
   }
 }
 
+/**
+ * Rebuild the tray context menu from fresh profile data. Call after
+ * profile create/rename/delete/pin so the per-profile list stays
+ * current. No args — reuses what createTray was given.
+ */
+function refreshTrayMenu() {
+  if (!tray || !trayArgs) return;
+  tray.setContextMenu(
+    buildContextMenu(trayArgs.quitFn, trayArgs.showFn, trayArgs.opts)
+  );
+}
+
 function destroyTray() {
   if (tray) {
     tray.destroy();
     tray = null;
   }
+  trayArgs = null;
 }
 
-module.exports = { createTray, destroyTray, focusExistingWindows, getTray: () => tray };
+module.exports = {
+  createTray,
+  destroyTray,
+  refreshTrayMenu,
+  focusExistingWindows,
+  getTray: () => tray,
+};

@@ -46,7 +46,11 @@ function attachNotificationBridge(mainWindow) {
     }
 
     const now = Date.now();
-    if (now - lastNotificationTime < C.notifications.cooldownMs) {
+    const cooldown =
+      Number.isFinite(settings.notifications.cooldownMs)
+        ? settings.notifications.cooldownMs
+        : C.notifications.cooldownMs;
+    if (now - lastNotificationTime < cooldown) {
       return; // throttled
     }
     lastNotificationTime = now;

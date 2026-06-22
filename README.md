@@ -107,7 +107,7 @@ The setup script:
 ### Manual install
 
 ```bash
-sudo dpkg -i whatsuck_1.0.1_amd64.deb
+sudo dpkg -i whatsuck_1.0.2_amd64.deb
 sudo apt-get install -f   # resolve missing runtime deps
 ```
 
@@ -204,7 +204,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install
 npm start        # dev mode (auto-update and keyring warnings skipped)
-npm run build    # produces dist/whatsuck_1.0.1_amd64.deb
+npm run build    # produces dist/whatsuck_1.0.2_amd64.deb
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map and data flow.
@@ -240,7 +240,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map and data flow.
 
 ## 🤝 Contributing
 
-PRs welcome. The codebase is small (~700 LOC across 12 files in `src/`); see [ARCHITECTURE.md](ARCHITECTURE.md) for the module map. Before opening a PR:
+PRs welcome. The codebase is small (~700 LOC across 14 files in `src/`); see [ARCHITECTURE.md](ARCHITECTURE.md) for the module map. Before opening a PR:
 
 1. Run `npm run build` and verify the `.deb` still installs
 2. Test your change in dev mode (`npm start`)

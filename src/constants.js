@@ -43,6 +43,12 @@ module.exports = Object.freeze({
     height: 180,
   },
 
+  // Settings window dimensions
+  settingsWindow: {
+    width: 520,
+    height: 480,
+  },
+
   // Notification bridge
   notifications: {
     // Throttle: min ms between two native notifications. Stops a

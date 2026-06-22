@@ -16,8 +16,10 @@ src/
 ├── profile-dialog-preload.js # Preload script — contextBridge, no nodeIntegration.
 ├── menu.js                   # Application menu (File, Profiles, Edit, View, Settings).
 ├── notifications.js          # In-page → OS notification bridge (rate-limited, settings-aware).
-├── settings.js                # User settings store (settings.json — notifications enabled/sound).
-├── tray.js                   # System tray icon (Show/Quit, fallback to minimize-to-dock).
+├── settings.js                # User settings store (settings.json — notifications, startup, minimize, close).
+├── settings-window.js        # Modal Settings window (load/save via IPC).
+├── settings-preload.js       # Preload for the Settings window — contextBridge, no nodeIntegration.
+├── tray.js                   # System tray icon (Show, per-profile list, Quit; fallback to minimize-to-dock).
 ├── security.js               # OS keyring availability check.
 ├── updater.js                # Auto-update via electron-updater.
 ├── browser-check.js          # Chromium staleness warning.
@@ -36,7 +38,7 @@ Total ~700 LOC. No transpilation, no bundler — Electron runs plain Node.js.
 
 ```
 1. main.js
-   └─ parse --profile= from argv
+   └─ resolve initial profile: --profile= CLI wins, else Settings → startup.profileId, else default
    └─ apply CLI switches (--no-sandbox, --disable-dev-shm-usage)
    └─ app.whenReady()
        └─ openProfile(initialProfileId)
@@ -48,8 +50,10 @@ Total ~700 LOC. No transpilation, no bundler — Electron runs plain Node.js.
            └─ attachNotificationBridge(win)
                └─ setPermissionRequestHandler
                └─ setPermissionCheckHandler
-               └─ webContents.on('notification', ...)
-       └─ installAppMenu({ currentWindow, openProfile })
+               └─ webContents.on('notification', ...) → event.preventDefault(), then showNativeNotification (settings-aware)
+       └─ installAppMenu({ currentWindow, openProfile, switchToProfile, openSettingsWindow, onProfilesChanged })
+       └─ createTray(quitApp, showActiveProfile, { getProfiles, switchProfile, getActiveId })  # per-profile list
+       └─ ipcMain.handle('settings-get' / 'settings-save')                                   # for the Settings window
        └─ checkKeyringAndWarn(win)         [one-time]
        └─ checkForUpdates()                [background]
        └─ checkBrowserStaleness()          [background]

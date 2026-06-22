@@ -1,6 +1,6 @@
 {
   "name": "whatsuck",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "WhatsApp Web as a native Ubuntu desktop app",
   "main": "src/main.js",
   "scripts": {
