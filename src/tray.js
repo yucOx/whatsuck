@@ -32,11 +32,11 @@ function focusExistingWindows() {
   }
 }
 
-function buildContextMenu(quitFn) {
+function buildContextMenu(quitFn, showFn) {
   return Menu.buildFromTemplate([
     {
       label: 'Show',
-      click: () => focusExistingWindows(),
+      click: () => (showFn ? showFn() : focusExistingWindows()),
     },
     { type: 'separator' },
     {
@@ -46,7 +46,7 @@ function buildContextMenu(quitFn) {
   ]);
 }
 
-function createTray(quitFn) {
+function createTray(quitFn, showFn) {
   if (tray) return tray;
 
   let image;
@@ -59,12 +59,13 @@ function createTray(quitFn) {
     return null;
   }
 
+  const onClick = () => (showFn ? showFn() : focusExistingWindows());
   try {
     tray = new Tray(image);
     tray.setToolTip(C.productName);
-    tray.setContextMenu(buildContextMenu(quitFn));
-    tray.on('click', () => focusExistingWindows());
-    tray.on('double-click', () => focusExistingWindows());
+    tray.setContextMenu(buildContextMenu(quitFn, showFn));
+    tray.on('click', onClick);
+    tray.on('double-click', onClick);
     console.log('[tray] system tray created');
     return tray;
   } catch (err) {

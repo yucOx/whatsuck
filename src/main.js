@@ -11,7 +11,7 @@ const { checkForUpdates } = require('./updater');
 const { checkBrowserStaleness } = require('./browser-check');
 const { loadProfiles, getActiveProfileId, saveProfiles } = require('./profiles');
 const { syncDesktopFiles } = require('./desktop');
-const { createTray, destroyTray, focusExistingWindows, getTray } = require('./tray');
+const { createTray, destroyTray, getTray } = require('./tray');
 
 // Track windows by profile id, since multiple windows can coexist.
 const windowsByProfile = new Map();
@@ -24,6 +24,11 @@ let isQuitting = false;
 // bootstrap once installAppMenu returns. Kept as a no-op until then so
 // the 'focus' listener below is safe to register at any time.
 let refreshMenu = () => {};
+
+// The profile the user last interacted with. Used by tray "Show" and
+// second-instance so we restore ONE window (the active profile), not
+// every hidden profile window at once.
+let lastActiveProfileId = initialProfileId;
 
 // Resolve the profile to open on this launch.
 const initialProfileId = getActiveProfileId(process.argv);
@@ -59,7 +64,10 @@ function registerWindow(win) {
   // Rebuild the menu whenever this window gains focus, so the Profiles
   // radio reflects the actually-focused profile. The menu is otherwise
   // built once at bootstrap and its currentProfileId would go stale.
-  win.on('focus', () => refreshMenu());
+  win.on('focus', () => {
+    lastActiveProfileId = win._profileId;
+    refreshMenu();
+  });
 }
 
 /**
@@ -96,6 +104,7 @@ function openProfile(profileId) {
     if (existing.isMinimized()) existing.restore();
     existing.show();
     existing.focus();
+    lastActiveProfileId = profileId;
     return existing;
   }
 
@@ -143,6 +152,7 @@ function openProfile(profileId) {
  */
 function switchToProfile(profileId) {
   const target = openProfile(profileId);
+  lastActiveProfileId = profileId;
   for (const [id, win] of windowsByProfile) {
     if (id === profileId) continue;
     if (win && !win.isDestroyed() && win.isVisible()) {
@@ -150,6 +160,15 @@ function switchToProfile(profileId) {
     }
   }
   return target;
+}
+
+/**
+ * Restore the profile the user last interacted with — used by tray
+ * "Show" and second-instance. Shows exactly one window (the active
+ * profile), not every hidden profile window.
+ */
+function showActiveProfile() {
+  return switchToProfile(lastActiveProfileId);
 }
 
 function quitApp() {
@@ -172,8 +191,9 @@ function bootstrap() {
     quitApp,
   }).rebuildMenu;
 
-  // Create the tray so closing the window keeps the app alive.
-  createTray(quitApp);
+  // Create the tray so closing the window keeps the app alive. Pass a
+  // show handler that restores only the active profile window, not all.
+  createTray(quitApp, showActiveProfile);
 
   const primary = windowsByProfile.get(initialProfileId);
   if (primary) {
@@ -200,7 +220,7 @@ app.on('second-instance', (_event, argv) => {
       return;
     }
   }
-  focusExistingWindows();
+  showActiveProfile();
 });
 
 // With the tray active, "all windows closed" is not a quit signal.
@@ -217,7 +237,7 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     openProfile(initialProfileId);
   } else {
-    focusExistingWindows();
+    showActiveProfile();
   }
 });
 
