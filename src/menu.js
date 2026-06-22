@@ -37,6 +37,11 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, quitApp }
           // Switch, not stack: show this profile, hide the others.
           if (switchToProfile) switchToProfile(p.id);
           else if (openProfile) openProfile(p.id);
+          // Refresh so currentProfileId tracks the now-focused window.
+          // Without this the guard above goes stale and switching
+          // back to the previous profile becomes a no-op (it stays
+          // hidden). See win 'focus' listener in main.js as well.
+          rebuildMenu();
         }
       },
     }));

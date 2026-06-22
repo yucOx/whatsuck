@@ -20,6 +20,11 @@ const windowsByProfile = new Map();
 // When false, the close button hides to tray instead of quitting.
 let isQuitting = false;
 
+// Refreshes the app menu (re-reads which profile is focused). Set from
+// bootstrap once installAppMenu returns. Kept as a no-op until then so
+// the 'focus' listener below is safe to register at any time.
+let refreshMenu = () => {};
+
 // Resolve the profile to open on this launch.
 const initialProfileId = getActiveProfileId(process.argv);
 
@@ -51,6 +56,10 @@ function registerWindow(win) {
   win.on('closed', () => {
     windowsByProfile.delete(win._profileId);
   });
+  // Rebuild the menu whenever this window gains focus, so the Profiles
+  // radio reflects the actually-focused profile. The menu is otherwise
+  // built once at bootstrap and its currentProfileId would go stale.
+  win.on('focus', () => refreshMenu());
 }
 
 /**
@@ -154,12 +163,14 @@ function bootstrap() {
   // opened explicitly via the menu or CLI flag.
   openProfile(initialProfileId);
 
-  installAppMenu({
+  // installAppMenu returns { rebuildMenu }; wire it so window focus
+  // events can refresh the Profiles radio. See registerWindow.
+  refreshMenu = installAppMenu({
     currentWindow: () => BrowserWindow.getFocusedWindow() || null,
     openProfile,
     switchToProfile,
     quitApp,
-  });
+  }).rebuildMenu;
 
   // Create the tray so closing the window keeps the app alive.
   createTray(quitApp);
