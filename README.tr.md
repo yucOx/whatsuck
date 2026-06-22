@@ -114,7 +114,7 @@ Setup betiği `curl`/`wget` ve `dpkg` kontrol eder, GitHub releases'ten son `.de
 ### Manuel kurulum
 
 ```bash
-sudo dpkg -i whatsuck_1.0.5_amd64.deb
+sudo dpkg -i whatsuck_1.0.6_amd64.deb
 sudo apt-get install -f   # eksik runtime bağımlılıklarını çöz
 ```
 
@@ -264,7 +264,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install        # Node 18+, npm
 npm start          # dev modu (auto-update ve keyring uyarıları atlanır)
-npm run build      # dist/whatsuck_1.0.5_amd64.deb üretir
+npm run build      # dist/whatsuck_1.0.6_amd64.deb üretir
 ```
 
 Build önkoşulları: Node 18+, npm ve `dpkg` (electron-builder `.deb` için ona çıkar). Debian/Ubuntu'da zaten vardır.
