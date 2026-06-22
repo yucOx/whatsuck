@@ -18,15 +18,26 @@ const { loadSettings } = require('./settings');
 function attachNotificationBridge(mainWindow) {
   const session = mainWindow.webContents.session;
 
+  // Gate the notifications permission on the user's "enabled" setting.
+  // WhatsApp Web shows notifications via a Service Worker's
+  // showNotification(), which does NOT fire the webContents 'notification'
+  // event — so preventDefault() there can't suppress them. Denying the
+  // permission at the Chromium layer blocks showNotification() outright
+  // (it rejects with TypeError), which is the only reliable off-switch.
+  // The handlers read settings live, so toggling enabled takes effect
+  // on the next notification without an app restart.
   session.setPermissionRequestHandler((webContents, permission, callback) => {
     if (permission === 'notifications') {
-      return callback(true);
+      return callback(loadSettings().notifications.enabled);
     }
     return callback(false);
   });
 
   session.setPermissionCheckHandler((webContents, permission) => {
-    return permission === 'notifications';
+    if (permission === 'notifications') {
+      return loadSettings().notifications.enabled;
+    }
+    return false;
   });
 
   let lastNotificationTime = 0;

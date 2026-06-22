@@ -113,7 +113,7 @@ The setup script checks for `curl`/`wget` and `dpkg`, downloads the latest `.deb
 ### Manual install
 
 ```bash
-sudo dpkg -i whatsuck_1.0.3_amd64.deb
+sudo dpkg -i whatsuck_1.0.4_amd64.deb
 sudo apt-get install -f   # resolve missing runtime deps
 ```
 
@@ -264,7 +264,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install        # Node 18+, npm
 npm start          # dev mode (auto-update and keyring warnings skipped)
-npm run build      # produces dist/whatsuck_1.0.3_amd64.deb
+npm run build      # produces dist/whatsuck_1.0.4_amd64.deb
 ```
 
 Build prerequisites: Node 18+, npm, and `dpkg` (electron-builder shells out to it for the `.deb`). On Debian/Ubuntu that's already present.
