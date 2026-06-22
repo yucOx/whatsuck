@@ -1,9 +1,9 @@
 'use strict';
 
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 
 const C = require('./constants');
-const { createMainWindow } = require('./window');
+const { createMainWindow, createProfileView } = require('./window');
 const { installAppMenu } = require('./menu');
 const { attachNotificationBridge } = require('./notifications');
 const { checkKeyringAndWarn } = require('./security');
@@ -14,26 +14,32 @@ const { syncDesktopFiles } = require('./desktop');
 const { createTray, destroyTray, refreshTrayMenu, getTray } = require('./tray');
 const { loadSettings, saveSettings } = require('./settings');
 const { openSettingsWindow } = require('./settings-window');
+const { pickProfile } = require('./profile-picker');
+const { createShell, sendTabsUpdate } = require('./tabs-shell');
 
-// Track windows by profile id, since multiple windows can coexist.
+// BrowserWindow-per-profile registry (switch / windows modes).
 const windowsByProfile = new Map();
 
-// Whether the user explicitly asked to quit (tray Quit, File > Quit).
-// When false, the close button hides to tray instead of quitting.
-let isQuitting = false;
+// Tabs mode: one shell + one WebContentsView per open profile.
+let shell = null;
+const viewsByProfile = new Map();
+let activeTabId = null;
 
-// Refreshes the app menu (re-reads which profile is focused). Set from
-// bootstrap once installAppMenu returns. Kept as a no-op until then so
-// the 'focus' listener below is safe to register at any time.
+let isQuitting = false;
 let refreshMenu = () => {};
+
+// Last profile the user interacted with — source of truth for tray
+// "Show", menu radio, and the tray per-profile list.
+let lastActiveProfileId = 'default';
+
+function layout() {
+  return loadSettings().ui.layout; // 'switch' | 'tabs' | 'windows'
+}
 
 /**
  * Resolve which profile to open on launch. CLI `--profile=<id>` wins;
- * otherwise the user's Settings → startup.profileId; otherwise the
- * marked-default profile, then 'default'. Invalid ids fall through.
- *
- * @param {string[]} [argv]
- * @returns {string}
+ * otherwise Settings → startup.profileId; otherwise the marked-default
+ * profile, then 'default'.
  */
 function resolveInitialProfileId(argv) {
   const a = argv || process.argv;
@@ -53,61 +59,30 @@ function resolveInitialProfileId(argv) {
   return def ? def.id : 'default';
 }
 
-// Resolve the profile to open on this launch.
 const initialProfileId = resolveInitialProfileId(process.argv);
+lastActiveProfileId = initialProfileId;
 
-// The profile the user last interacted with. Used by tray "Show" and
-// second-instance so we restore ONE window (the active profile), not
-// every hidden profile window at once.
-let lastActiveProfileId = initialProfileId;
-
-// Apply CLI switches before app is ready.
 for (const sw of C.cliSwitches) {
   app.commandLine.appendSwitch(sw);
 }
-
-// Set the X11/Wayland window class to match the per-profile
-// StartupWMClass in the .desktop file, so taskbar grouping works.
 if (initialProfileId !== 'default') {
   app.commandLine.appendSwitch('class', `whatsuck-${initialProfileId}`);
 }
 
-// --- Single instance ---
-// If the user clicks the app launcher while Whatsuck is already
-// running (hidden in tray), we want to focus the existing window
-// instead of opening a second instance. requestSingleInstanceLock
-// makes the OS send a 'second-instance' event to the first process.
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
-  // Another instance is already running. Tell it to show its
-  // windows, then exit this one immediately.
   app.quit();
 }
 
-function registerWindow(win) {
-  windowsByProfile.set(win._profileId, win);
-  win.on('closed', () => {
-    windowsByProfile.delete(win._profileId);
-  });
-  // Rebuild the menu whenever this window gains focus, so the Profiles
-  // radio reflects the actually-focused profile. The menu is otherwise
-  // built once at bootstrap and its currentProfileId would go stale.
-  win.on('focus', () => {
-    lastActiveProfileId = win._profileId;
-    refreshMenu();
-  });
-}
+// --- helpers shared across modes ---
 
 /**
- * Send Esc to the WhatsApp page so the open conversation is
- * deselected. Keeps the user from appearing "in" a chat after the
- * window hides. Must run while the window still has focus —
- * sendInputEvent is a no-op on an unfocused window — so call before
- * hide()/minimize().
+ * Send Esc to a webContents so the open conversation is deselected.
+ * Must run while the window still has focus (sendInputEvent is a
+ * no-op on an unfocused webContents), so call before hide()/minimize().
  */
-function deselectChat(win) {
+function deselectChat(wc) {
   try {
-    const wc = win.webContents;
     if (!wc || wc.isDestroyed()) return;
     wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
@@ -116,13 +91,50 @@ function deselectChat(win) {
   }
 }
 
-/**
- * Open a window for a given profile. If one is already open, show it.
- */
+/** Raise a profile's BrowserWindow (switch/windows modes). */
+function raiseProfileWindow(profileId) {
+  const win = windowsByProfile.get(profileId);
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  if (!win.isVisible()) win.show();
+  win.setSkipTaskbar(false);
+  win.moveTop();
+  win.focus();
+}
+
+/** Surface a profile regardless of layout (used by notification click). */
+function raiseProfile(profileId) {
+  if (layout() === 'tabs') {
+    if (!shell || shell.isDestroyed()) return;
+    if (!shell.isVisible()) shell.show();
+    if (shell.isMinimized()) shell.restore();
+    setActiveTab(profileId);
+    shell.setSkipTaskbar(false);
+    shell.moveTop();
+    shell.focus();
+  } else {
+    raiseProfileWindow(profileId);
+  }
+}
+
+// --- BrowserWindow path (switch / windows modes) ---
+
+function registerWindow(win) {
+  windowsByProfile.set(win._profileId, win);
+  win.on('closed', () => {
+    windowsByProfile.delete(win._profileId);
+    refreshAllMenus();
+  });
+  win.on('focus', () => {
+    lastActiveProfileId = win._profileId;
+    refreshMenu();
+  });
+}
+
 function openProfile(profileId) {
   if (profileId === 'default') {
     const profiles = loadProfiles();
-    if (!profiles.some(p => p.id === 'default')) {
+    if (!profiles.some((p) => p.id === 'default')) {
       profiles.unshift({ id: 'default', name: 'Personal', isDefault: true, isPinned: false });
       saveProfiles(profiles);
     }
@@ -136,84 +148,231 @@ function openProfile(profileId) {
     return existing;
   }
 
-  const win = createMainWindow({
-    profileId,
-    onClosed: () => {},
-  });
-
-  // Intercept the close button:
-  //   - If tray works → hide to tray (invisible, click tray to restore)
-  //   - If tray unavailable → minimize to dock (window icon visible
-  //     in the taskbar, click to restore)
-  //   - If user explicitly chose Quit → allow close
+  const win = createMainWindow({ profileId, onClosed: () => {} });
   win.on('close', (event) => {
     if (isQuitting) return;
     const settings = loadSettings();
-    // User option: X quits the app instead of hiding to tray.
     if (settings.closeButton.behavior === 'quit') {
       event.preventDefault();
       quitApp();
       return;
     }
     event.preventDefault();
-    if (settings.minimize.escToDeselect) {
-      // hide() does not fire 'minimize', so deselect here while still
-      // focused. The minimize() path lets the 'minimize' handler do it
-      // (avoids a double Esc).
-      deselectChat(win);
-    }
+    if (settings.minimize.escToDeselect) deselectChat(win.webContents);
     const tray = getTray();
     if (tray) {
       win.hide();
     } else {
-      // Make sure the window stays in the taskbar even when minimized.
       win.setSkipTaskbar(false);
       win.minimize();
     }
   });
-
-  // Covers the taskbar minimize button and the no-tray close path
-  // above (minimize() fires this event). Best-effort: the window may
-  // already be losing focus.
   win.on('minimize', () => {
-    if (loadSettings().minimize.escToDeselect) deselectChat(win);
+    if (loadSettings().minimize.escToDeselect) deselectChat(win.webContents);
   });
 
   registerWindow(win);
-  attachNotificationBridge(win);
+  attachNotificationBridge(win.webContents, () => raiseProfile(profileId));
   return win;
 }
 
+// --- Tabs path ---
+
+function ensureShell() {
+  if (shell && !shell.isDestroyed()) return shell;
+  shell = createShell({ onClosed: () => {
+    shell = null;
+    viewsByProfile.clear();
+    activeTabId = null;
+    refreshAllMenus();
+  }});
+
+  shell.on('close', (event) => {
+    if (isQuitting) return;
+    const settings = loadSettings();
+    if (settings.closeButton.behavior === 'quit') {
+      event.preventDefault();
+      quitApp();
+      return;
+    }
+    event.preventDefault();
+    const activeWc = activeTabId && viewsByProfile.get(activeTabId);
+    if (activeWc && settings.minimize.escToDeselect) {
+      deselectChat(activeWc.webContents);
+    }
+    const tray = getTray();
+    if (tray) {
+      shell.hide();
+    } else {
+      shell.setSkipTaskbar(false);
+      shell.minimize();
+    }
+  });
+  shell.on('minimize', () => {
+    const activeView = activeTabId && viewsByProfile.get(activeTabId);
+    if (activeView && loadSettings().minimize.escToDeselect) {
+      deselectChat(activeView.webContents);
+    }
+  });
+  shell.on('focus', () => refreshMenu());
+  shell.on('resize', () => {
+    const v = activeTabId && viewsByProfile.get(activeTabId);
+    if (v) layoutActiveView(v);
+  });
+
+  // Wire tab-bar IPC to the shell's webContents only.
+  const sid = shell.webContents.id;
+  ipcMain.on('tabs-select', (e, id) => { if (e.sender.id === sid) setActiveTab(id); });
+  ipcMain.on('tabs-new', (e) => { if (e.sender.id === sid) openProfileTabPicker(); });
+  ipcMain.on('tabs-close', (e, id) => { if (e.sender.id === sid) closeTab(id); });
+
+  return shell;
+}
+
+/** Position the active view below the tab-bar strip. */
+function layoutActiveView(view) {
+  const [w, h] = shell.getContentSize();
+  view.setBounds({ x: 0, y: C.tabs.barHeight, width: w, height: Math.max(0, h - C.tabs.barHeight) });
+}
+
+function openTabInShell(profileId) {
+  ensureShell();
+  if (viewsByProfile.has(profileId)) {
+    setActiveTab(profileId);
+    return;
+  }
+  const view = createProfileView(profileId);
+  viewsByProfile.set(profileId, view);
+  attachNotificationBridge(view.webContents, () => raiseProfile(profileId));
+  setActiveTab(profileId);
+}
+
+function setActiveTab(profileId) {
+  const view = viewsByProfile.get(profileId);
+  if (!view) return;
+  // Hide inactive views (remove from contentView; webContents stays alive).
+  for (const [id, v] of viewsByProfile) {
+    if (id !== profileId && !v.webContents.isDestroyed()) {
+      shell.contentView.removeChildView(v);
+    }
+  }
+  shell.contentView.addChildView(view);
+  layoutActiveView(view);
+  activeTabId = profileId;
+  lastActiveProfileId = profileId;
+  refreshMenu();
+  sendTabsUpdate(shell, tabList(), activeTabId);
+}
+
+function closeTab(profileId) {
+  const view = viewsByProfile.get(profileId);
+  if (!view) return;
+  if (!view.webContents.isDestroyed()) {
+    shell.contentView.removeChildView(view);
+    view.webContents.destroy();
+  }
+  viewsByProfile.delete(profileId);
+  if (activeTabId === profileId) {
+    const next = viewsByProfile.keys().next().value || null;
+    activeTabId = null;
+    if (next) setActiveTab(next);
+    else sendTabsUpdate(shell, [], null);
+  } else {
+    sendTabsUpdate(shell, tabList(), activeTabId);
+  }
+  refreshAllMenus();
+}
+
+function tabList() {
+  const profiles = loadProfiles();
+  return profiles
+    .filter((p) => viewsByProfile.has(p.id))
+    .map((p) => ({ id: p.id, name: p.name, isDefault: p.isDefault }));
+}
+
+// --- single entry points (layout-aware) ---
+
 /**
- * Show one profile at a time: focus (or create) the target window
- * and hide every other profile window. Makes the Profiles menu act
- * as a switcher instead of opening profiles side by side.
+ * Open a profile as a new tab/window per the current layout. The menu
+ * "Open Tab…" (Ctrl+T) and the tray "Open Profile…" use this.
+ */
+function openProfileTab(profileId) {
+  if (layout() === 'tabs') {
+    openTabInShell(profileId);
+  } else {
+    // switch + windows both open a BrowserWindow; switch hides others.
+    switchToProfile(profileId);
+  }
+}
+
+function openProfileTabPicker() {
+  const parent = (layout() === 'tabs') ? shell : (BrowserWindow.getFocusedWindow() || null);
+  pickProfile(parent).then((id) => { if (id) openProfileTab(id); });
+}
+
+/**
+ * Switch to a profile per layout. switch: show + hide others. windows:
+ * show + focus (no hide). tabs: setActiveTab (create if needed).
  */
 function switchToProfile(profileId) {
+  if (layout() === 'tabs') {
+    ensureShell();
+    if (!shell.isVisible()) shell.show();
+    if (viewsByProfile.has(profileId)) {
+      setActiveTab(profileId);
+    } else {
+      openTabInShell(profileId);
+    }
+    return;
+  }
   const target = openProfile(profileId);
   lastActiveProfileId = profileId;
-  for (const [id, win] of windowsByProfile) {
-    if (id === profileId) continue;
-    if (win && !win.isDestroyed() && win.isVisible()) {
-      win.hide();
+  if (layout() === 'switch') {
+    for (const [id, win] of windowsByProfile) {
+      if (id !== profileId && win && !win.isDestroyed() && win.isVisible()) {
+        win.hide();
+      }
     }
   }
   return target;
 }
 
-/**
- * Restore the profile the user last interacted with — used by tray
- * "Show" and second-instance. Shows exactly one window (the active
- * profile), not every hidden profile window.
- */
+/** Restore the last-active profile — used by tray "Show" / second-instance. */
 function showActiveProfile() {
   return switchToProfile(lastActiveProfileId);
 }
 
-/**
- * Refresh both the app menu and the tray context menu. Call after
- * profile create/rename/delete/pin and after settings save.
- */
+/** Close a profile's window or tab (used by menu Delete). */
+function closeProfile(profileId) {
+  if (layout() === 'tabs') {
+    closeTab(profileId);
+  } else {
+    const win = windowsByProfile.get(profileId);
+    if (win && !win.isDestroyed()) {
+      // Force close (bypass the hide-to-tray preventDefault).
+      win.destroy();
+    }
+  }
+}
+
+// --- menu target helpers ---
+
+function getActiveProfileId() {
+  return lastActiveProfileId;
+}
+function getActiveWebContents() {
+  if (layout() === 'tabs') {
+    const v = activeTabId && viewsByProfile.get(activeTabId);
+    return v ? v.webContents : null;
+  }
+  const win = BrowserWindow.getFocusedWindow();
+  return win ? win.webContents : null;
+}
+function getActiveWindow() {
+  if (layout() === 'tabs') return shell;
+  return BrowserWindow.getFocusedWindow() || null;
+}
+
 function refreshAllMenus() {
   refreshMenu();
   refreshTrayMenu();
@@ -225,7 +384,7 @@ function quitApp() {
   app.quit();
 }
 
-// Settings window IPC: the preload (settings-preload.js) invokes these.
+// --- IPC for the Settings window ---
 ipcMain.handle('settings-get', () => ({
   settings: loadSettings(),
   profiles: loadProfiles(),
@@ -241,32 +400,32 @@ ipcMain.handle('settings-save', (_event, s) => {
   return true;
 });
 
-function bootstrap() {
-  // Only the default profile opens on launch. Other profiles are
-  // opened explicitly via the menu or CLI flag.
-  openProfile(initialProfileId);
+// --- IPC for the profile picker ---
+ipcMain.handle('profile-picker-get', () => loadProfiles());
 
-  // installAppMenu returns { rebuildMenu }; wire it so window focus
-  // events can refresh the Profiles radio. See registerWindow.
+function bootstrap() {
+  openProfileTab(initialProfileId);
+
   refreshMenu = installAppMenu({
-    currentWindow: () => BrowserWindow.getFocusedWindow() || null,
-    openProfile,
-    switchToProfile,
+    currentWindow: getActiveWindow,
+    getActiveProfileId,
+    getActiveWebContents,
+    openProfileTabPicker,
     openSettingsWindow,
     onProfilesChanged: refreshAllMenus,
+    closeProfile,
     quitApp,
   }).rebuildMenu;
 
-  // Create the tray so closing the window keeps the app alive. Pass a
-  // show handler that restores only the active profile window, and a
-  // per-profile list so the user can switch from the tray directly.
   createTray(quitApp, showActiveProfile, {
     getProfiles: loadProfiles,
     switchProfile: switchToProfile,
     getActiveId: () => lastActiveProfileId,
+    openPicker: openProfileTabPicker,
   });
 
-  const primary = windowsByProfile.get(initialProfileId);
+  const primary = windowsByProfile.get(initialProfileId)
+    || (layout() === 'tabs' ? shell : null);
   if (primary) {
     checkKeyringAndWarn(primary);
   }
@@ -278,35 +437,29 @@ function bootstrap() {
 
 app.whenReady().then(bootstrap);
 
-// Second instance: the user clicked the launcher again. Show the
-// existing windows and steal focus.
 app.on('second-instance', (_event, argv) => {
-  // If the user passed --profile=work, try to show that specific window.
   const match = argv.find((a) => a.startsWith('--profile='));
   if (match) {
-    const { PROFILE_ID_RE } = require('./profiles');
     const id = match.split('=')[1];
     if (PROFILE_ID_RE.test(id)) {
-      openProfile(id);
+      openProfileTab(id);
       return;
     }
   }
   showActiveProfile();
 });
 
-// With the tray active, "all windows closed" is not a quit signal.
-// The tray remains. Only explicit Quit (tray menu, File > Quit)
-// ends the process.
 app.on('window-all-closed', (e) => {
   if (process.platform === 'darwin') return;
+  // In tabs mode the shell is the only window; keep alive via tray.
   if (!isQuitting) {
     e.preventDefault();
   }
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    openProfile(initialProfileId);
+  if (BrowserWindow.getAllWindows().length === 0 && !shell) {
+    openProfileTab(initialProfileId);
   } else {
     showActiveProfile();
   }
@@ -317,4 +470,4 @@ app.on('before-quit', () => {
   destroyTray();
 });
 
-module.exports = { openProfile, switchToProfile, windowsByProfile };
+module.exports = { openProfileTab, switchToProfile, windowsByProfile };

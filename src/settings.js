@@ -40,6 +40,14 @@ const DEFAULTS = Object.freeze({
   closeButton: {
     behavior: 'hideToTray',
   },
+  // How profiles are displayed.
+  //   'switch'  — one window per profile, one visible at a time (default).
+  //   'tabs'    — one window with a tab bar; each open profile is a tab.
+  //   'windows' — one window per profile, all visible side by side.
+  // Applies on the next Open Tab / profile open; not migrated live.
+  ui: {
+    layout: 'switch',
+  },
 });
 
 function settingsPath() {

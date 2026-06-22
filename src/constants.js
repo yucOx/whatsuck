@@ -56,6 +56,12 @@ module.exports = Object.freeze({
     cooldownMs: 1000,
   },
 
+  // Tabbed shell (ui.layout === 'tabs')
+  tabs: {
+    // Height of the tab-bar strip rendered by the shell's webContents.
+    barHeight: 36,
+  },
+
   // Browser staleness check
   browser: {
     // Warn when bundled Chromium is this many major versions behind

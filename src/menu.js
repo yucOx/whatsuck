@@ -13,16 +13,27 @@ const { generateDesktopFile, removeDesktopFile } = require('./desktop');
 const { promptInput } = require('./profile-dialog');
 const { loadSettings, saveSettings } = require('./settings');
 
+const LAYOUTS = ['switch', 'tabs', 'windows'];
+
 /**
  * Build and install the application menu with a Profiles section.
  *
  * @param {object} options
- * @param {Function} options.currentWindow  - Returns the focused BrowserWindow.
- * @param {Function} options.openProfile    - Opens a new window for a profile.
+ * @param {Function} options.currentWindow      - Returns the focused BrowserWindow (or the tabbed shell).
+ * @param {Function} options.getActiveProfileId - Returns the active profile id.
+ * @param {Function} options.getActiveWebContents - Returns the active profile's webContents.
+ * @param {Function} options.switchToProfile    - Layout-aware profile switch/open.
+ * @param {Function} options.openProfileTabPicker - Opens the profile picker.
+ * @param {Function} options.openSettingsWindow - Opens the Settings window.
+ * @param {Function} options.onProfilesChanged  - Rebuild app menu + tray.
+ * @param {Function} options.closeProfile       - Close a profile's window/tab.
+ * @param {Function} options.quitApp            - Quit the app.
  */
-function installAppMenu({ currentWindow, openProfile, switchToProfile, openSettingsWindow, onProfilesChanged, quitApp } = {}) {
-  // Rebuild app menu + tray after profile mutations; falls back to
-  // app-menu-only rebuild when no onProfilesChanged was passed.
+function installAppMenu({
+  currentWindow, getActiveProfileId, getActiveWebContents,
+  switchToProfile, openProfileTabPicker, openSettingsWindow,
+  onProfilesChanged, closeProfile, quitApp,
+} = {}) {
   const profilesChanged = () => {
     if (onProfilesChanged) onProfilesChanged();
     else rebuildMenu();
@@ -30,7 +41,7 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
 
   function rebuildMenu() {
     const win = currentWindow ? currentWindow() : null;
-    const currentProfileId = win ? win._profileId : 'default';
+    const currentProfileId = getActiveProfileId ? getActiveProfileId() : 'default';
     const profiles = loadProfiles();
     const current = profiles.find(p => p.id === currentProfileId) || profiles[0];
 
@@ -40,14 +51,8 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
       type: 'radio',
       checked: p.id === currentProfileId,
       click: () => {
-        if (p.id !== currentProfileId) {
-          // Switch, not stack: show this profile, hide the others.
-          if (switchToProfile) switchToProfile(p.id);
-          else if (openProfile) openProfile(p.id);
-          // Refresh so currentProfileId tracks the now-focused window.
-          // Without this the guard above goes stale and switching
-          // back to the previous profile becomes a no-op (it stays
-          // hidden). See win 'focus' listener in main.js as well.
+        if (p.id !== currentProfileId && switchToProfile) {
+          switchToProfile(p.id);
           rebuildMenu();
         }
       },
@@ -56,6 +61,12 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
     const profilesMenu = {
       label: 'Profiles',
       submenu: [
+        {
+          label: 'Open Tab…',
+          accelerator: 'CmdOrCtrl+T',
+          click: () => { if (openProfileTabPicker) openProfileTabPicker(); },
+        },
+        { type: 'separator' },
         ...profileItems,
         { type: 'separator' },
         {
@@ -74,7 +85,6 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
               }
               profilesChanged();
               if (switchToProfile) switchToProfile(profile.id);
-              else if (openProfile) openProfile(profile.id);
             } catch (err) {
               dialog.showErrorBox(
                 'Could not create profile',
@@ -94,7 +104,6 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
             });
             if (!newName || newName === current.name) return;
             renameProfile(currentProfileId, newName);
-            // Refresh the .desktop file with the new name if pinned.
             if (current.isPinned && app.isPackaged) {
               const updated = loadProfiles().find(p => p.id === currentProfileId);
               if (updated) generateDesktopFile(updated, app.getPath('exe'));
@@ -118,10 +127,10 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
               cancelId: 1,
             });
             if (choice !== 0) return;
-            const remaining = deleteProfile(currentProfileId);
+            deleteProfile(currentProfileId);
             removeDesktopFile(current);
-            // Close the window for the deleted profile.
-            if (win && !win.isDestroyed()) win.close();
+            // Close the profile's window/tab (layout-aware).
+            if (closeProfile) closeProfile(currentProfileId);
             profilesChanged();
           },
         },
@@ -157,6 +166,19 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
       ],
     };
 
+    const layout = loadSettings().ui.layout;
+    const layoutItems = LAYOUTS.map((mode) => ({
+      label: { switch: 'Switch (one visible)', tabs: 'Tabs (one window)', windows: 'Windows (side by side)' }[mode],
+      type: 'radio',
+      checked: layout === mode,
+      click: () => {
+        const s = loadSettings();
+        s.ui.layout = mode;
+        saveSettings(s);
+        rebuildMenu();
+      },
+    }));
+
     // --- Standard menus ---
     const template = [
       {
@@ -165,15 +187,16 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
           {
             label: 'New Window',
             accelerator: 'CmdOrCtrl+N',
-            click: () => {
-              if (openProfile) openProfile(currentProfileId);
-            },
+            click: () => { if (openProfileTabPicker) openProfileTabPicker(); },
           },
           { type: 'separator' },
           {
             label: 'Reload',
             accelerator: 'CmdOrCtrl+R',
-            click: () => win && win.webContents.reload(),
+            click: () => {
+              const wc = getActiveWebContents && getActiveWebContents();
+              if (wc && !wc.isDestroyed()) wc.reload();
+            },
           },
           { type: 'separator' },
           {
@@ -210,9 +233,6 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
             label: 'Toggle Menu Bar',
             type: 'checkbox',
             checked: true,
-            // When unchecked, the menu bar hides. Pressing Alt shows
-            // it again briefly (the OS auto-hide behavior) so the
-            // user can always get back to the menu.
             click: (item, focusedWindow) => {
               if (!focusedWindow) return;
               const show = !item.checked;
@@ -224,7 +244,10 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
           {
             label: 'Toggle Developer Tools',
             accelerator: 'F12',
-            click: () => win && win.webContents.toggleDevTools(),
+            click: () => {
+              const wc = getActiveWebContents && getActiveWebContents();
+              if (wc && !wc.isDestroyed()) wc.toggleDevTools();
+            },
           },
         ],
       },
@@ -233,11 +256,13 @@ function installAppMenu({ currentWindow, openProfile, switchToProfile, openSetti
         submenu: [
           {
             label: 'Open Settings…',
-            click: () => {
-              if (openSettingsWindow) openSettingsWindow(win);
-            },
+            click: () => { if (openSettingsWindow) openSettingsWindow(win); },
           },
           { type: 'separator' },
+          {
+            label: 'Layout',
+            submenu: layoutItems,
+          },
           {
             label: 'Notifications Enabled',
             type: 'checkbox',

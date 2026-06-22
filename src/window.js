@@ -1,6 +1,6 @@
 'use strict';
 
-const { BrowserWindow, session, shell } = require('electron');
+const { BrowserWindow, WebContentsView, session, shell } = require('electron');
 const C = require('./constants');
 
 // WhatsApp Web rejects browsers whose User-Agent doesn't look like
@@ -21,85 +21,55 @@ const CHROME_UA = [
   'Safari/537.36',
 ].join(' ');
 
+// Sessions we've already installed the UA-spoof webRequest on, so we
+// don't re-register it per view sharing the same partition.
+const configuredSessions = new WeakSet();
+
 /**
- * Create a browser window pointed at WhatsApp Web.
- *
- * @param {object} [options]
- * @param {string} [options.profileId='default'] - Profile to load.
- *   'default' uses session.defaultSession (backward compat).
- *   Any other id uses session.fromPartition('persist:<id>').
- * @param {Function} [options.onClosed] - Callback when window closes.
- * @returns {BrowserWindow}
+ * @param {string} profileId
+ * @returns {Electron.Session} defaultSession for 'default', else
+ *   session.fromPartition('persist:<id>').
  */
-function createMainWindow({ profileId = 'default', onClosed } = {}) {
-  // Choose session: default profile keeps backward compat with
-  // session.defaultSession; other profiles get isolated partitions.
+function profileSession(profileId) {
+  if (profileId === 'default') return session.defaultSession;
+  return session.fromPartition(`persist:${profileId}`);
+}
+
+/**
+ * Install the UA spoof on the profile's session (idempotent) and
+ * return the webPreferences object a BrowserWindow / WebContentsView
+ * should use for this profile.
+ *
+ * @param {string} profileId
+ * @returns {object} webPreferences
+ */
+function profileWebPrefs(profileId) {
   const isDefault = profileId === 'default';
-  const partitionName = isDefault ? undefined : `persist:${profileId}`;
-  const ses = isDefault
-    ? session.defaultSession
-    : session.fromPartition(partitionName);
-
-  // Spoof UA on this profile's session so every request (including
-  // service-worker loads) carries the Chrome string.
-  ses.webRequest.onBeforeSendHeaders((details, callback) => {
-    details.requestHeaders['User-Agent'] = CHROME_UA;
-    callback({ requestHeaders: details.requestHeaders });
-  });
-
-  const webPrefs = {
+  const ses = profileSession(profileId);
+  if (!configuredSessions.has(ses)) {
+    ses.webRequest.onBeforeSendHeaders((details, callback) => {
+      details.requestHeaders['User-Agent'] = CHROME_UA;
+      callback({ requestHeaders: details.requestHeaders });
+    });
+    configuredSessions.add(ses);
+  }
+  const prefs = {
     nodeIntegration: false,
     contextIsolation: true,
     sandbox: true,
-    // Hardening: no legacy remote module, no webview tag, no
-    // inline-insecure loads, no JS-via-experimental-flags.
     webviewTag: false,
     webSecurity: true,
     allowRunningInsecureContent: false,
     experimentalFeatures: false,
   };
+  if (!isDefault) prefs.partition = `persist:${profileId}`;
+  return prefs;
+}
 
-  // Non-default profiles need an explicit partition key so the
-  // BrowserWindow uses the right session from creation time.
-  if (!isDefault) {
-    webPrefs.partition = partitionName;
-  }
-
-  const win = new BrowserWindow({
-    width: C.window.defaultWidth,
-    height: C.window.defaultHeight,
-    minWidth: C.window.minWidth,
-    minHeight: C.window.minHeight,
-    title: C.productName,
-    icon: C.iconPath,
-    show: false,
-    webPreferences: webPrefs,
-  });
-
-  // Top-level navigation and navigator.userAgent must see Chrome too.
-  win.webContents.setUserAgent(CHROME_UA);
-
-  // Tag the window with its profile id so the menu and main process
-  // can look up which profile this window belongs to.
-  win._profileId = profileId;
-
-  // --- External link handling ---
-  // WhatsApp Web shows previews and contact links that point at
-  // arbitrary http(s):// URLs. We don't want those opening inside
-  // the Electron window (which would lose the per-profile session)
-  // — we want them in the OS default browser via xdg-open.
-  //
-  // Two intercept points are needed:
-  //   1. will-navigate     – any link click / window.location change
-  //   2. setWindowOpenHandler – target="_blank" / window.open()
-  //
-  // We only intercept URLs that don't match the current WhatsApp
-  // Web origin, so internal navigation (e.g. multi-step log-in
-  // flows) still works.
-
-  // Treat unparseable URLs as external (do not load in-app, do not
-  // forward to shell.openExternal either — safer default is to drop
-  // them entirely).
+// External link handling — only http(s) to non-WhatsApp hosts leave the
+// app via xdg-open; everything else stays in-app. Shared by the
+// BrowserWindow and WebContentsView paths.
+function attachExternalLinkHandlers(wc) {
   const isExternal = (url) => {
     try {
       const u = new URL(url);
@@ -110,33 +80,73 @@ function createMainWindow({ profileId = 'default', onClosed } = {}) {
     }
   };
 
-  win.webContents.on('will-navigate', (event, url) => {
+  wc.on('will-navigate', (event, url) => {
     if (isExternal(url)) {
       event.preventDefault();
-      // For unparseable URLs, skip shell.openExternal too.
       try { shell.openExternal(url); } catch {}
     }
   });
 
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  wc.setWindowOpenHandler(({ url }) => {
     if (isExternal(url)) {
       try { shell.openExternal(url); } catch {}
     }
-    // Block in-app new windows regardless. WhatsApp Web's
-    // target="_blank" is rare and not useful here.
     return { action: 'deny' };
   });
+}
 
-  win.loadURL(C.whatsAppUrl);
+/**
+ * Load WhatsApp Web into a webContents, spoof its UA, and install the
+ * external-link interceptors. Used by both the BrowserWindow factory
+ * (switch/windows modes) and the WebContentsView factory (tabs mode).
+ *
+ * @param {Electron.WebContents} wc
+ */
+function loadWhatsApp(wc) {
+  wc.setUserAgent(CHROME_UA);
+  attachExternalLinkHandlers(wc);
+  wc.loadURL(C.whatsAppUrl);
+}
 
-  // Show once the page has finished painting — avoids white flash.
-  win.once('ready-to-show', () => win.show());
-
-  win.on('closed', () => {
-    if (onClosed) onClosed();
+/**
+ * Create a browser window pointed at WhatsApp Web.
+ *
+ * @param {object} [options]
+ * @param {string} [options.profileId='default']
+ * @param {Function} [options.onClosed]
+ * @returns {BrowserWindow}
+ */
+function createMainWindow({ profileId = 'default', onClosed } = {}) {
+  const win = new BrowserWindow({
+    width: C.window.defaultWidth,
+    height: C.window.defaultHeight,
+    minWidth: C.window.minWidth,
+    minHeight: C.window.minHeight,
+    title: C.productName,
+    icon: C.iconPath,
+    show: false,
+    webPreferences: profileWebPrefs(profileId),
   });
-
+  win._profileId = profileId;
+  loadWhatsApp(win.webContents);
+  win.once('ready-to-show', () => win.show());
+  win.on('closed', () => { if (onClosed) onClosed(); });
   return win;
 }
 
-module.exports = { createMainWindow };
+/**
+ * Create a WebContentsView for a profile (tabs mode). Loads WhatsApp
+ * Web with the profile's partition and the same strict webPrefs as
+ * the BrowserWindow path.
+ *
+ * @param {string} profileId
+ * @returns {WebContentsView}
+ */
+function createProfileView(profileId) {
+  const view = new WebContentsView({ webPreferences: profileWebPrefs(profileId) });
+  view._profileId = profileId;
+  loadWhatsApp(view.webContents);
+  return view;
+}
+
+module.exports = { createMainWindow, createProfileView };

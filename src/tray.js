@@ -34,14 +34,22 @@ function focusExistingWindows() {
 }
 
 function buildContextMenu(quitFn, showFn, opts) {
-  const { getProfiles, switchProfile, getActiveId } = opts || {};
+  const { getProfiles, switchProfile, getActiveId, openPicker } = opts || {};
   const items = [
     {
       label: 'Show',
       click: () => (showFn ? showFn() : focusExistingWindows()),
     },
-    { type: 'separator' },
   ];
+
+  if (typeof openPicker === 'function') {
+    items.push({
+      label: 'Open Profile…',
+      click: () => openPicker(),
+    });
+  }
+
+  items.push({ type: 'separator' });
 
   if (typeof getProfiles === 'function' && typeof switchProfile === 'function') {
     const activeId = typeof getActiveId === 'function' ? getActiveId() : null;

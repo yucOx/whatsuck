@@ -1,22 +1,26 @@
 'use strict';
 
-const { Notification, app } = require('electron');
-const path = require('path');
+const { Notification } = require('electron');
 const C = require('./constants');
 const { loadSettings } = require('./settings');
 
 /**
  * Native notification bridge for WhatsApp Web.
  *
- * Always uses Electron's Notification API so we can attach a click
- * handler that brings the window to front. For the "sound off"
- * setting, we pass silent: true — on most Linux desktops this
- * suppresses the notification sound. On systems where libnotify
- * ignores silent, the user should mute notification sounds at the
- * OS level.
+ * Attaches to a single WebContents (a profile window's webContents, or
+ * a WebContentsView's webContents in tabs mode) and its session. The
+ * click handler calls `onRaise`, supplied by the caller, which knows
+ * how to surface the right window/tab for that profile.
+ *
+ * For "sound off" we pass silent: true — best-effort on Linux, where
+ * the notification sound is often desktop-environment-controlled.
+ *
+ * @param {Electron.WebContents} wc - The profile's webContents.
+ * @param {Function} onRaise - Called on notification click to surface
+ *   the profile's window/tab (no args).
  */
-function attachNotificationBridge(mainWindow) {
-  const session = mainWindow.webContents.session;
+function attachNotificationBridge(wc, onRaise) {
+  const ses = wc.session;
 
   // Gate the notifications permission on the user's "enabled" setting.
   // WhatsApp Web shows notifications via a Service Worker's
@@ -26,14 +30,14 @@ function attachNotificationBridge(mainWindow) {
   // (it rejects with TypeError), which is the only reliable off-switch.
   // The handlers read settings live, so toggling enabled takes effect
   // on the next notification without an app restart.
-  session.setPermissionRequestHandler((webContents, permission, callback) => {
+  ses.setPermissionRequestHandler((_webContents, permission, callback) => {
     if (permission === 'notifications') {
       return callback(loadSettings().notifications.enabled);
     }
     return callback(false);
   });
 
-  session.setPermissionCheckHandler((webContents, permission) => {
+  ses.setPermissionCheckHandler((_webContents, permission) => {
     if (permission === 'notifications') {
       return loadSettings().notifications.enabled;
     }
@@ -42,11 +46,8 @@ function attachNotificationBridge(mainWindow) {
 
   let lastNotificationTime = 0;
   const onNotification = (event, payload) => {
-    // Suppress the renderer's own native notification. Without this,
-    // Electron displays WhatsApp's Notification regardless of our
-    // settings, so "Notifications Enabled: off" had no effect, and
-    // the auto-shown popup carried no click handler (issue: clicking
-    // it sometimes did nothing). We take over display entirely.
+    // Suppress the renderer's own native notification so we fully
+    // control whether/with-what-options a notification shows.
     event.preventDefault();
 
     const settings = loadSettings();
@@ -66,20 +67,20 @@ function attachNotificationBridge(mainWindow) {
     }
     lastNotificationTime = now;
 
-    showNativeNotification(payload, mainWindow, settings);
+    showNativeNotification(payload, settings, onRaise);
   };
 
-  mainWindow.webContents.on('notification', onNotification);
-  mainWindow.once('closed', () => {
-    mainWindow.webContents.removeListener('notification', onNotification);
+  wc.on('notification', onNotification);
+  wc.once('destroyed', () => {
+    wc.removeListener('notification', onNotification);
   });
 }
 
 /**
- * Show a native notification with a click handler that focuses
- * the main window, even if it's hidden or minimized.
+ * Show a native notification with a click handler that calls onRaise
+ * to surface the profile's window/tab, even if it's hidden/minimized.
  */
-function showNativeNotification(payload, mainWindow, settings) {
+function showNativeNotification(payload, settings, onRaise) {
   if (!Notification.isSupported()) {
     return;
   }
@@ -97,16 +98,7 @@ function showNativeNotification(payload, mainWindow, settings) {
   const notification = new Notification(opts);
 
   notification.on('click', () => {
-    if (mainWindow.isDestroyed()) return;
-
-    // Order matters: focus() on a hidden window is a no-op, so
-    // restore/show first. moveTop() forces a raise on Linux where
-    // focus() alone can be blocked by focus-stealing prevention.
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    if (!mainWindow.isVisible()) mainWindow.show();
-    mainWindow.setSkipTaskbar(false);
-    mainWindow.moveTop();
-    mainWindow.focus();
+    if (typeof onRaise === 'function') onRaise();
   });
 
   notification.show();

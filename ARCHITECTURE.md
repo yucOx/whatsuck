@@ -8,18 +8,22 @@ the renderer should never have any more power than a regular Chrome tab.
 
 ```
 src/
-├── main.js                  # Entry point. App lifecycle, single-instance, multi-window.
-├── window.js                 # BrowserWindow factory. UA spoofing, external links.
+├── main.js                  # Entry point. App lifecycle, single-instance, layout modes (switch/tabs/windows).
+├── window.js                # BrowserWindow + WebContentsView factories. UA spoofing, external links.
 ├── profiles.js               # Profile metadata store (profiles.json).
 ├── desktop.js                # Per-profile .desktop file management.
 ├── profile-dialog.js         # Modal text input (New Profile, Rename).
 ├── profile-dialog-preload.js # Preload script — contextBridge, no nodeIntegration.
+├── profile-picker.js         # Modal profile picker (Open Tab). Lists profiles + New.
+├── profile-picker-preload.js # Preload for the picker — contextBridge, no nodeIntegration.
+├── tabs-shell.js             # Tabbed shell: one BrowserWindow + tab-bar strip + WebContentsView per profile (layout: tabs).
+├── tabs-shell-preload.js     # Preload for the tab-bar strip.
 ├── menu.js                   # Application menu (File, Profiles, Edit, View, Settings).
-├── notifications.js          # In-page → OS notification bridge (rate-limited, settings-aware).
-├── settings.js                # User settings store (settings.json — notifications, startup, minimize, close).
+├── notifications.js          # In-page → OS notification bridge (per-webContents, settings-aware, permission-gated).
+├── settings.js                # User settings store (settings.json — notifications, startup, minimize, close, ui.layout).
 ├── settings-window.js        # Modal Settings window (load/save via IPC).
 ├── settings-preload.js       # Preload for the Settings window — contextBridge, no nodeIntegration.
-├── tray.js                   # System tray icon (Show, per-profile list, Quit; fallback to minimize-to-dock).
+├── tray.js                   # System tray icon (Show, Open Profile, per-profile list, Quit).
 ├── security.js               # OS keyring availability check.
 ├── updater.js                # Auto-update via electron-updater.
 ├── browser-check.js          # Chromium staleness warning.
@@ -32,7 +36,7 @@ setup.sh                      # One-command install (downloads from GitHub relea
 uninstall.sh                  # Interactive uninstaller (asks about data deletion).
 ```
 
-Total ~700 LOC. No transpilation, no bundler — Electron runs plain Node.js.
+Total ~900 LOC. No transpilation, no bundler — Electron runs plain Node.js.
 
 ## Data flow on startup
 

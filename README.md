@@ -54,7 +54,8 @@ The headline feature is **multiple WhatsApp accounts in one app**. Each profile 
 ### 💬 Built for WhatsApp
 
 - **Multi-profile** — two or more WhatsApp accounts, each in its own isolated Electron partition. Switch from the menu, the tray, or the CLI
-- **One visible at a time** — selecting a profile shows it and hides the rest; windows stay alive so switching back is instant
+- **Configurable layout** — choose in Settings how profiles are displayed: **Switch** (one visible at a time, default), **Tabs** (one window with a Chrome-like tab bar), or **Windows** (one window per profile, side by side)
+- **Open Tab…** — `Ctrl+T` or the tray menu opens a profile picker so you can open another account without closing the current one
 - **Pin to desktop** — pin any profile to your app menu as "Whatsuck (Work)"
 - **Startup profile** — choose which account opens on bare launch (Settings → *Open this profile on launch*)
 - **Real notifications** — incoming messages hit the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon; clicking a notification raises the right window
@@ -81,7 +82,7 @@ The headline feature is **multiple WhatsApp accounts in one app**. Each profile 
 ### ⚙️ Technical
 
 - **Bundled Chromium** — Electron 35.7.5, Chromium ~130. A staleness warning fires if it ever falls 2+ majors behind stable Chrome
-- **Plain JavaScript** — no TypeScript, no bundler, no transpile. ~14 files in `src/`, ~700 LOC
+- **Plain JavaScript** — no TypeScript, no bundler, no transpile. ~18 files in `src/`, ~900 LOC
 - **UA spoofing** — WhatsApp Web's "works with Chrome 85+" gate rejects Electron's default UA; we spoof a standard Linux Chrome UA at both the session and webContents level
 - **Robust I/O** — corrupted `profiles.json` / `settings.json` are auto-backed-up and re-seeded rather than crash-looping
 - **Atomic writes** — all stores write to `.tmp` then `rename`
@@ -113,7 +114,7 @@ The setup script checks for `curl`/`wget` and `dpkg`, downloads the latest `.deb
 ### Manual install
 
 ```bash
-sudo dpkg -i whatsuck_1.0.4_amd64.deb
+sudo dpkg -i whatsuck_1.0.5_amd64.deb
 sudo apt-get install -f   # resolve missing runtime deps
 ```
 
@@ -196,6 +197,7 @@ Open **Settings → Open Settings…** for the full window, or use the quick tog
 | Notification sound | Play a sound with each notification (best-effort on Linux; some desktops ignore `silent`) |
 | Min delay between notifications | Cooldown in ms (default 1000) — throttles bursts |
 | Open this profile on launch | Which profile opens on bare launch (`--profile=` CLI overrides it) |
+| Layout | Switch (one visible) / Tabs (one window, Chrome-like) / Windows (side by side). Applies on the next Open Tab |
 | Esc on minimize | Press Esc when minimizing so the open chat is deselected |
 | Close button | *Hide to tray* (keep running, default) or *Quit the app* |
 
@@ -264,7 +266,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install        # Node 18+, npm
 npm start          # dev mode (auto-update and keyring warnings skipped)
-npm run build      # produces dist/whatsuck_1.0.4_amd64.deb
+npm run build      # produces dist/whatsuck_1.0.5_amd64.deb
 ```
 
 Build prerequisites: Node 18+, npm, and `dpkg` (electron-builder shells out to it for the `.deb`). On Debian/Ubuntu that's already present.
@@ -318,6 +320,8 @@ Screenshots coming soon. The app window is WhatsApp Web; the notable UI surfaces
 
 **The X button doesn't quit.** By design it hides to tray (the app keeps running for notifications). To make X quit, open Settings and set *Close button → Quit the app*. Either way, **Ctrl+Q** or **File → Quit** quits immediately.
 
+**How do I see two profiles at once?** Open Settings → Layout and pick **Tabs** (one window with a tab bar) or **Windows** (separate windows side by side). The default **Switch** shows one at a time. Changing layout applies to the next profile you open (open windows aren't migrated live).
+
 **Switching profiles opens two windows.** It shouldn't — selecting a profile shows it and hides the rest. If you see two, you're on an older build; update to ≥ 1.0.2.
 
 **I deleted a profile by accident.** Undelete isn't supported — the session data is gone. Re-create the profile and re-scan the QR code.
@@ -344,7 +348,7 @@ Screenshots coming soon. The app window is WhatsApp Web; the notable UI surfaces
 
 ## 🤝 Contributing
 
-PRs welcome. The codebase is small (~700 LOC across 14 files in `src/`); see [ARCHITECTURE.md](ARCHITECTURE.md) for the module map. Before opening a PR:
+PRs welcome. The codebase is small (~900 LOC across 18 files in `src/`); see [ARCHITECTURE.md](ARCHITECTURE.md) for the module map. Before opening a PR:
 
 1. Run `npm run build` and verify the `.deb` still installs
 2. Test your change in dev mode (`npm start`)

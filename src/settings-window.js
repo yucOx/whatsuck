@@ -81,6 +81,19 @@ function openSettingsWindow(parent) {
 
   <div class="section">Window</div>
   <div class="row">
+    <label>Layout</label>
+  </div>
+  <div class="row">
+    <label><input type="radio" name="layout" value="switch" /> Switch — one profile visible at a time</label>
+  </div>
+  <div class="row">
+    <label><input type="radio" name="layout" value="tabs" /> Tabs — one window, profile tabs (Chrome-like)</label>
+  </div>
+  <div class="row">
+    <label><input type="radio" name="layout" value="windows" /> Windows — one window per profile, side by side</label>
+  </div>
+  <div class="hint">Applies on the next Open Tab. Open windows are not migrated live.</div>
+  <div class="row">
     <label for="startupProfile">Open this profile on launch</label>
     <select class="ctrl" id="startupProfile"></select>
   </div>
@@ -124,6 +137,9 @@ function openSettingsWindow(parent) {
       document.querySelectorAll('input[name="closeBehavior"]').forEach((r) => {
         r.checked = (r.value === settings.closeButton.behavior);
       });
+      document.querySelectorAll('input[name="layout"]').forEach((r) => {
+        r.checked = (r.value === settings.ui.layout);
+      });
       syncSoundEnabled();
     }
     function syncSoundEnabled() {
@@ -135,6 +151,7 @@ function openSettingsWindow(parent) {
 
     function collect() {
       const close = document.querySelector('input[name="closeBehavior"]:checked');
+      const lay = document.querySelector('input[name="layout"]:checked');
       return {
         notifications: {
           enabled: $('notifEnabled').checked,
@@ -144,6 +161,7 @@ function openSettingsWindow(parent) {
         startup: { profileId: $('startupProfile').value },
         minimize: { escToDeselect: $('escMin').checked },
         closeButton: { behavior: close ? close.value : 'hideToTray' },
+        ui: { layout: lay ? lay.value : 'switch' },
       };
     }
 
