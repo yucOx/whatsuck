@@ -1,6 +1,6 @@
 {
   "name": "whatsuck",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "WhatsApp Web as a native Ubuntu desktop app",
   "main": "src/main.js",
   "scripts": {
@@ -30,7 +30,7 @@
     "linux": {
       "target": "deb",
       "category": "Network",
-      "icon": "assets/icon",
+      "icon": "build/icons",
       "maintainer": "yucOx",
       "synopsis": "WhatsApp Web as a native desktop app",
       "syncDesktopName": true
