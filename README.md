@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>WhatsApp Web as a native Ubuntu desktop app.</strong><br>
-  Switch between multiple accounts, real OS notifications, auto-update, keyring-encrypted sessions — all in one ~85 MB package.
+  Switch between multiple accounts, real OS notifications, voice/video calling, auto-update, keyring-encrypted sessions — all in one ~85 MB package.
 </p>
 
 <p align="center">
@@ -76,13 +76,13 @@ The headline feature is **multiple WhatsApp accounts in one app**. Each profile 
 - **OS keyring** — session cookies encrypted with GNOME Keyring / KWallet when available; a warning fires on first launch if `libsecret` is missing
 - **Strict sandboxing** — `contextIsolation`, `sandbox`, `webSecurity=true`, no `nodeIntegration`, no `webviewTag`
 - **Isolated dialogs** — profile input and the Settings window use preload + `contextBridge`; renderers have zero Node.js access
-- **Locked-down permissions** — only `notifications` is granted; every other permission is denied
+- **Locked-down permissions** — `notifications` and `media` (mic/camera) are gated on your Settings; every other permission is denied. First use of a media device prompts Allow/Deny and remembers your choice
 - **External links** — only `http`/`https` to non-WhatsApp hosts leave the app, via `shell.openExternal`
 
 ### ⚙️ Technical
 
 - **Bundled Chromium** — Electron 35.7.5, Chromium ~130. A staleness warning fires if it ever falls 2+ majors behind stable Chrome
-- **Plain JavaScript** — no TypeScript, no bundler, no transpile. ~18 files in `src/`, ~900 LOC
+- **Plain JavaScript** — no TypeScript, no bundler, no transpile. ~21 files in `src/`, ~1000 LOC
 - **UA spoofing** — WhatsApp Web's "works with Chrome 85+" gate rejects Electron's default UA; we spoof a standard Linux Chrome UA at both the session and webContents level
 - **Robust I/O** — corrupted `profiles.json` / `settings.json` are auto-backed-up and re-seeded rather than crash-looping
 - **Atomic writes** — all stores write to `.tmp` then `rename`
@@ -196,6 +196,8 @@ Open **Settings → Open Settings…** for the full window, or use the quick tog
 | Notifications enabled | Master switch for OS notifications |
 | Notification sound | Play a sound with each notification (best-effort on Linux; some desktops ignore `silent`) |
 | Min delay between notifications | Cooldown in ms (default 1000) — throttles bursts |
+| Microphone | Allow/deny WhatsApp Web voice calls. First call prompts; this toggle overrides anytime |
+| Camera | Allow/deny WhatsApp Web video calls. First call prompts; this toggle overrides anytime |
 | Open this profile on launch | Which profile opens on bare launch (`--profile=` CLI overrides it) |
 | Layout | Switch (one visible) / Tabs (one window, Chrome-like) / Windows (side by side). Applies on the next Open Tab |
 | Esc on minimize | Press Esc when minimizing so the open chat is deselected |
@@ -251,7 +253,7 @@ All session data stays local under `~/.config/whatsuck/`.
 
 ### Architecture (in brief)
 
-Every main window is created with `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webviewTag: false`. The profile dialog and Settings window use a preload script + `contextBridge` so their renderers cannot reach Node.js. Only the `notifications` permission is granted. Updates are HTTPS with SHA512 hash verification against `latest-linux.yml` published alongside each GitHub release. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module map and startup data flow.
+Every main window is created with `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webviewTag: false`. The profile dialog and Settings window use a preload script + `contextBridge` so their renderers cannot reach Node.js. Only the `notifications` and `media` (microphone/camera) permissions are granted, and both are gated on your Settings — `media` prompts you the first time WhatsApp Web requests a device, then remembers your choice. Everything else is denied. Updates are HTTPS with SHA512 hash verification against `latest-linux.yml` published alongside each GitHub release. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module map and startup data flow.
 
 ### Reporting a vulnerability
 
@@ -348,7 +350,7 @@ Screenshots coming soon. The app window is WhatsApp Web; the notable UI surfaces
 
 ## 🤝 Contributing
 
-PRs welcome. The codebase is small (~900 LOC across 18 files in `src/`); see [ARCHITECTURE.md](ARCHITECTURE.md) for the module map. Before opening a PR:
+PRs welcome. The codebase is small (~1000 LOC across 21 files in `src/`); see [ARCHITECTURE.md](ARCHITECTURE.md) for the module map. Before opening a PR:
 
 1. Run `npm run build` and verify the `.deb` still installs
 2. Test your change in dev mode (`npm start`)

@@ -79,6 +79,17 @@ function openSettingsWindow(parent) {
     <input class="ctrl" id="cooldown" type="number" min="0" step="100" />
   </div>
 
+  <div class="section">Media</div>
+  <div class="row">
+    <label for="micEnabled">Mikrofon (sesli arama)</label>
+    <input class="ctrl" id="micEnabled" type="checkbox" />
+  </div>
+  <div class="row">
+    <label for="camEnabled">Kamera (görüntülü arama)</label>
+    <input class="ctrl" id="camEnabled" type="checkbox" />
+  </div>
+  <div class="hint">İlk kullanımda WhatsApp izin ister. Buradan istediğiniz zaman açıp kapatabilirsiniz. Değişiklik kaydedildiğinde uygulama yeniden başlar.</div>
+
   <div class="section">Window</div>
   <div class="row">
     <label>Layout</label>
@@ -124,6 +135,8 @@ function openSettingsWindow(parent) {
       $('notifEnabled').checked = settings.notifications.enabled;
       $('notifSound').checked = settings.notifications.sound;
       $('cooldown').value = settings.notifications.cooldownMs;
+      $('micEnabled').checked = settings.media.microphone === true;
+      $('camEnabled').checked = settings.media.camera === true;
       $('escMin').checked = settings.minimize.escToDeselect;
       const sel = $('startupProfile');
       sel.innerHTML = '';
@@ -157,6 +170,10 @@ function openSettingsWindow(parent) {
           enabled: $('notifEnabled').checked,
           sound: $('notifSound').checked,
           cooldownMs: parseInt($('cooldown').value, 10) || 0,
+        },
+        media: {
+          microphone: $('micEnabled').checked,
+          camera: $('camEnabled').checked,
         },
         startup: { profileId: $('startupProfile').value },
         minimize: { escToDeselect: $('escMin').checked },

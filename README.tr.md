@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>WhatsApp Web, native bir Ubuntu masaüstü uygulaması olarak.</strong><br>
-  Hesaplar arası geçiş, gerçek OS bildirimleri, otomatik güncelleme, keyring ile şifrelenmiş oturumlar — hepsi tek ~85 MB pakette.
+  Hesaplar arası geçiş, gerçek OS bildirimleri, sesli/görüntülü arama, otomatik güncelleme, keyring ile şifrelenmiş oturumlar — hepsi tek ~85 MB pakette.
 </p>
 
 <p align="center">
@@ -76,13 +76,13 @@ Bir tarayıcı sekmesi WhatsApp masaüstü deneyiminin çoğunu verir — gerçe
 - **OS keyring** — oturum çerezleri mümkün olduğunda GNOME Keyring / KWallet ile şifrelenir; `libsecret` yoksa ilk açılışta uyarı verilir
 - **Katı sandbox** — `contextIsolation`, `sandbox`, `webSecurity=true`, `nodeIntegration` yok, `webviewTag` yok
 - **İzole diyaloglar** — profil girişi ve Ayarlar penceresi preload + `contextBridge` kullanır; renderer'ların Node.js erişimi sıfırdır
-- **Kilitli izinler** — yalnızca `notifications` izni verilir; diğer tüm izinler reddedilir
+- **Kilitli izinler** — `notifications` ve `media` (mikrofon/kamera) Ayarlar'a bağlı; diğer tüm izinler reddedilir. İlk medya kullanımında İzin Ver/Reddet sorulur, cevap hatırlanır
 - **Harici linkler** — yalnızca `http`/`https` ve WhatsApp dışı hostlar uygulamadan `shell.openExternal` ile çıkar
 
 ### ⚙️ Teknik
 
 - **Gömülü Chromium** — Electron 35.7.5, Chromium ~130. Stabil Chrome'dan 2+ major geride kalırsa eskime uyarısı verilir
-- **Sade JavaScript** — TypeScript yok, bundler yok, transpile yok. `src/`'de ~18 dosya, ~900 LOC
+- **Sade JavaScript** — TypeScript yok, bundler yok, transpile yok. `src/`'de ~21 dosya, ~1000 LOC
 - **UA spoofing** — WhatsApp Web'in "Chrome 85+ ile çalışır" gate'i Electron'un varsayılan UA'sını reddeder; standart bir Linux Chrome UA'sını hem session hem webContents seviyesinde spooflarız
 - **Sağlam I/O** — bozuk `profiles.json` / `settings.json` otomatik yedeklenir ve yeniden tohumlanır, crash loop olmaz
 - **Atomik yazım** — tüm store'lar `.tmp`'ye yazar sonra `rename`
@@ -196,6 +196,8 @@ Tüm pencere için **Ayarlar → Ayarları Aç…**'ı aç, ya da Ayarlar menüs
 | Bildirimler açık | OS bildirimleri ana anahtarı |
 | Bildirim sesi | Her bildirimde ses çal (Linux'ta elden geldiğince; bazı masaüstleri `silent`'ı görmezden gelir) |
 | Bildirimler arası min gecikme | ms cinsinden cooldown (varsayılan 1000) — patlamaları yavaşlatır |
+| Mikrofon | WhatsApp Web sesli aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir |
+| Kamera | WhatsApp Web görüntülü aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir |
 | Açılışta bu profili aç | Sade launch'te hangi profil açılır (`--profile=` CLI geçersiz kılar) |
 | Layout | Switch (tek görünür) / Tabs (tek pencere, Chrome gibi) / Windows (yan yana). Bir sonraki Sekme Aç'ta etkili |
 | Minimize'de Esc | Minimize ettiğinde Esc basar, açık sohbet seçimsiz kalır |
@@ -249,7 +251,7 @@ Tüm oturum verisi `~/.config/whatsuck/` altında lokal kalır.
 
 ### Mimari (kısaca)
 
-Her ana pencere `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webviewTag: false` ile oluşturulur. Profil diyalogu ve Ayarlar penceresi preload + `contextBridge` kullanır; renderer'lar Node.js'e erişemez. Yalnızca `notifications` izni verilir. Güncellemeler HTTPS + her GitHub release yanında yayınlanan `latest-linux.yml`'e karşı SHA512 hash doğrulaması. Tam modül haritası ve startup veri akışı için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bak.
+Her ana pencere `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webviewTag: false` ile oluşturulur. Profil diyalogu ve Ayarlar penceresi preload + `contextBridge` kullanır; renderer'lar Node.js'e erişemez. Yalnızca `notifications` ve `media` (mikrofon/kamera) izinleri verilir ve ikisi de Ayarlar'a bağlı — `media` ilk kullanımda izin ister, cevabı hatırlar. Diğer her şey reddedilir. Güncellemeler HTTPS + her GitHub release yanında yayınlanan `latest-linux.yml`'e karşı SHA512 hash doğrulaması. Tam modül haritası ve startup veri akışı için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bak.
 
 ### Güvenlik açığı bildirimi
 
@@ -346,7 +348,7 @@ Ekran görüntüleri yakında. Uygulama penceresi WhatsApp Web; dikkat çekici U
 
 ## 🤝 Katkıda bulunma
 
-PR'ler welcome. Kod tabanı küçük (`src/`'de ~900 LOC, 18 dosya); modül haritası için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bak. PR açmadan önce:
+PR'ler welcome. Kod tabanı küçük (`src/`'de ~1000 LOC, 21 dosya); modül haritası için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bak. PR açmadan önce:
 
 1. `npm run build` çalıştır ve `.deb`'in hâlâ kurulduğunu doğrula
 2. Değişikliğini dev modunda test et (`npm start`)

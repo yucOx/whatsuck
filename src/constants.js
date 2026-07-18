@@ -46,7 +46,7 @@ module.exports = Object.freeze({
   // Settings window dimensions
   settingsWindow: {
     width: 520,
-    height: 480,
+    height: 560,
   },
 
   // Notification bridge
@@ -54,6 +54,15 @@ module.exports = Object.freeze({
     // Throttle: min ms between two native notifications. Stops a
     // compromised page from flooding the OS notification daemon.
     cooldownMs: 1000,
+  },
+
+  // Media (microphone / camera) access for WhatsApp Web calling.
+  // Labels are interpolated into the first-use permission prompt.
+  media: {
+    labels: {
+      microphone: 'mikrofonunuzu',
+      camera: 'kameranızı',
+    },
   },
 
   // Tabbed shell (ui.layout === 'tabs')

@@ -19,8 +19,11 @@ src/
 ├── tabs-shell.js             # Tabbed shell: one BrowserWindow + tab-bar strip + WebContentsView per profile (layout: tabs).
 ├── tabs-shell-preload.js     # Preload for the tab-bar strip.
 ├── menu.js                   # Application menu (File, Profiles, Edit, View, Settings).
-├── notifications.js          # In-page → OS notification bridge (per-webContents, settings-aware, permission-gated).
-├── settings.js                # User settings store (settings.json — notifications, startup, minimize, close, ui.layout).
+├── notifications.js          # In-page → OS notification event bridge (per-webContents, settings-aware).
+├── permissions.js            # Session permission handlers (notifications + media), single owner per session.
+├── media-prompt.js           # First-use Allow/Deny modal for mic/camera (called from permissions.js).
+├── media-prompt-preload.js   # Preload for the media prompt — contextBridge, no nodeIntegration.
+├── settings.js                # User settings store (settings.json — notifications, media, startup, minimize, close, ui.layout).
 ├── settings-window.js        # Modal Settings window (load/save via IPC).
 ├── settings-preload.js       # Preload for the Settings window — contextBridge, no nodeIntegration.
 ├── tray.js                   # System tray icon (Show, Open Profile, per-profile list, Quit).
@@ -52,8 +55,9 @@ Total ~900 LOC. No transpilation, no bundler — Electron runs plain Node.js.
            │   └─ install external link interceptors
            │   └─ loadURL('https://web.whatsapp.com')
            └─ attachNotificationBridge(win)
-               └─ setPermissionRequestHandler
-               └─ setPermissionCheckHandler
+               └─ installPermissionHandlers(session)   # notifications + media, single owner per session
+                   └─ setPermissionRequestHandler  (media: first-use Allow/Deny prompt via media-prompt.js, persisted to settings)
+                   └─ setPermissionCheckHandler     (notifications + per-type media gating, settings live)
                └─ webContents.on('notification', ...) → event.preventDefault(), then showNativeNotification (settings-aware)
        └─ installAppMenu({ currentWindow, openProfile, switchToProfile, openSettingsWindow, onProfilesChanged })
        └─ createTray(quitApp, showActiveProfile, { getProfiles, switchProfile, getActiveId })  # per-profile list
@@ -92,6 +96,7 @@ content goes through the same checklist:
 | Malicious link opens in-app | `will-navigate` + `setWindowOpenHandler` interceptors |
 | Malicious URL string in `openExternal` | `isExternal()` validates protocol + host |
 | Compromised page floods notifications | 1 notification/second rate limit |
+| Page accesses mic/camera silently | `media` permission gated per device (settings-gated); first use prompts, answer persisted; everything else still denied |
 | Compromised page spoofs IPC | `webContents.id` validation in `ipcMain` |
 | Compromised page exploits webPreferences legacy | Explicit `webviewTag: false`, `webSecurity: true`, etc. |
 | Update channel MITM | `electron-updater` over HTTPS, SHA512 verification |

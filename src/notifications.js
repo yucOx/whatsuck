@@ -3,6 +3,7 @@
 const { Notification } = require('electron');
 const C = require('./constants');
 const { loadSettings } = require('./settings');
+const { installPermissionHandlers } = require('./permissions');
 
 /**
  * Native notification bridge for WhatsApp Web.
@@ -12,37 +13,26 @@ const { loadSettings } = require('./settings');
  * click handler calls `onRaise`, supplied by the caller, which knows
  * how to surface the right window/tab for that profile.
  *
+ * Session permission handlers (notifications + media) are installed once
+ * per session via permissions.installPermissionHandlers; this function
+ * keeps only the notification *event* bridge (wc.on('notification')).
+ *
  * For "sound off" we pass silent: true — best-effort on Linux, where
  * the notification sound is often desktop-environment-controlled.
  *
  * @param {Electron.WebContents} wc - The profile's webContents.
  * @param {Function} onRaise - Called on notification click to surface
  *   the profile's window/tab (no args).
+ * @param {object} [opts]
+ * @param {Function} [opts.promptMedia] - Injected media permission prompter
+ *   (media-prompt.js). Forwarded to installPermissionHandlers.
  */
-function attachNotificationBridge(wc, onRaise) {
+function attachNotificationBridge(wc, onRaise, opts = {}) {
   const ses = wc.session;
 
-  // Gate the notifications permission on the user's "enabled" setting.
-  // WhatsApp Web shows notifications via a Service Worker's
-  // showNotification(), which does NOT fire the webContents 'notification'
-  // event — so preventDefault() there can't suppress them. Denying the
-  // permission at the Chromium layer blocks showNotification() outright
-  // (it rejects with TypeError), which is the only reliable off-switch.
-  // The handlers read settings live, so toggling enabled takes effect
-  // on the next notification without an app restart.
-  ses.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if (permission === 'notifications') {
-      return callback(loadSettings().notifications.enabled);
-    }
-    return callback(false);
-  });
-
-  ses.setPermissionCheckHandler((_webContents, permission) => {
-    if (permission === 'notifications') {
-      return loadSettings().notifications.enabled;
-    }
-    return false;
-  });
+  // Install the unified session permission handlers (notifications + media).
+  // Idempotent per session; safe to call again for a shared partition.
+  installPermissionHandlers(ses, opts.promptMedia);
 
   let lastNotificationTime = 0;
   const onNotification = (event, payload) => {

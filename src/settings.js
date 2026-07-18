@@ -48,6 +48,16 @@ const DEFAULTS = Object.freeze({
   ui: {
     layout: 'switch',
   },
+  // Media device access for WhatsApp Web calling.
+  //   null  — undecided: the first call prompts the user (Allow/Deny).
+  //   true  — granted (no future prompt).
+  //   false — denied  (no future prompt).
+  // null survives JSON serialization, so a fresh install stays undecided
+  // until the first-use prompt (or the Settings toggle) sets a boolean.
+  media: {
+    microphone: null,
+    camera: null,
+  },
 });
 
 function settingsPath() {

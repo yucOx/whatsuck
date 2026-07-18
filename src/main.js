@@ -15,6 +15,7 @@ const { createTray, destroyTray, refreshTrayMenu, getTray } = require('./tray');
 const { loadSettings, saveSettings } = require('./settings');
 const { openSettingsWindow } = require('./settings-window');
 const { pickProfile } = require('./profile-picker');
+const { promptMediaPermission } = require('./media-prompt');
 const { createShell, sendTabsUpdate } = require('./tabs-shell');
 
 // BrowserWindow-per-profile registry (switch / windows modes).
@@ -172,7 +173,8 @@ function openProfile(profileId) {
   });
 
   registerWindow(win);
-  attachNotificationBridge(win.webContents, () => raiseProfile(profileId));
+  attachNotificationBridge(win.webContents, () => raiseProfile(profileId),
+    { promptMedia: promptMediaPermission });
   return win;
 }
 
@@ -243,7 +245,8 @@ function openTabInShell(profileId) {
   }
   const view = createProfileView(profileId);
   viewsByProfile.set(profileId, view);
-  attachNotificationBridge(view.webContents, () => raiseProfile(profileId));
+  attachNotificationBridge(view.webContents, () => raiseProfile(profileId),
+    { promptMedia: promptMediaPermission });
   setActiveTab(profileId);
 }
 
@@ -389,7 +392,24 @@ ipcMain.handle('settings-get', () => ({
   settings: loadSettings(),
   profiles: loadProfiles(),
 }));
+
+/**
+ * Did the media (mic/camera) permission block change between two settings
+ * snapshots? Used to decide whether saving Settings should relaunch the app
+ * so WhatsApp Web re-requests the device with the new allow/deny state.
+ *
+ * @param {object} [a]
+ * @param {object} [b]
+ * @returns {boolean}
+ */
+function mediaSettingsChanged(a, b) {
+  a = a || {};
+  b = b || {};
+  return a.microphone !== b.microphone || a.camera !== b.camera;
+}
+
 ipcMain.handle('settings-save', (_event, s) => {
+  const prev = loadSettings();
   try {
     saveSettings(s);
   } catch (err) {
@@ -397,6 +417,14 @@ ipcMain.handle('settings-save', (_event, s) => {
     return false;
   }
   refreshAllMenus();
+  // Media permission changes need WhatsApp Web to re-request the device,
+  // which only happens on a fresh page/session. Relaunch the whole app so
+  // the new state is applied reliably across every open profile. Other
+  // settings (notifications, layout, …) already apply live, no restart.
+  if (mediaSettingsChanged(prev.media, s && s.media)) {
+    app.relaunch();
+    app.exit(0);
+  }
   return true;
 });
 
