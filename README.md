@@ -258,7 +258,7 @@ Every main window is created with `nodeIntegration: false`, `contextIsolation: t
 
 ### Reporting a vulnerability
 
-Open a private security advisory on GitHub, or email `yucOx@users.noreply.github.com`. Please don't file public issues for security bugs.
+Open a private security advisory on GitHub, or email `yucox@yuxor.ltd`. Please don't file public issues for security bugs.
 
 ---
 

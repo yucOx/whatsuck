@@ -256,7 +256,7 @@ Her ana pencere `nodeIntegration: false`, `contextIsolation: true`, `sandbox: tr
 
 ### Güvenlik açığı bildirimi
 
-GitHub'da özel bir güvenlik danışmanlığı aç, veya `yucOx@users.noreply.github.com`'a e-posta at. Güvenlik hataları için public issue açma.
+GitHub'da özel bir güvenlik danışmanlığı aç, veya `yucox@yuxor.ltd`'a e-posta at. Güvenlik hataları için public issue açma.
 
 ---
 

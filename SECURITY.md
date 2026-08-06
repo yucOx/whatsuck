@@ -6,7 +6,7 @@
 
 - open a **private security advisory** on
   [github.com/yucOx/whatsuck/security/advisories/new](https://github.com/yucOx/whatsuck/security/advisories/new), or
-- email `yucOx@users.noreply.github.com`.
+- email `yucox@yuxor.ltd`.
 
 Please include a description of the issue, steps to reproduce, and the impact.
 We'll acknowledge the report **within 72 hours** and work with you on a fix and

@@ -86,7 +86,7 @@ Open an issue with:
 ## Reporting vulnerabilities
 
 **Do not file public issues for security bugs.** Open a private security
-advisory on GitHub, or email `yucOx@users.noreply.github.com`. We'll respond
+advisory on GitHub, or email `yucox@yuxor.ltd`. We'll respond
 within 72 hours.
 
 ## Community standards
