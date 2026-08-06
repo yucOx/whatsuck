@@ -44,7 +44,7 @@ const DEFAULTS = Object.freeze({
   //   'switch'  — one window per profile, one visible at a time (default).
   //   'tabs'    — one window with a tab bar; each open profile is a tab.
   //   'windows' — one window per profile, all visible side by side.
-  // Applies on the next Open Tab / profile open; not migrated live.
+  // Applies on the next Open Profile; open windows are not migrated live.
   ui: {
     layout: 'switch',
   },

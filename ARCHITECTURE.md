@@ -14,7 +14,7 @@ src/
 ├── desktop.js                # Per-profile .desktop file management.
 ├── profile-dialog.js         # Modal text input (New Profile, Rename).
 ├── profile-dialog-preload.js # Preload script — contextBridge, no nodeIntegration.
-├── profile-picker.js         # Modal profile picker (Open Tab). Lists profiles + New.
+├── profile-picker.js         # Modal profile picker (Open Profile). Lists profiles + New.
 ├── profile-picker-preload.js # Preload for the picker — contextBridge, no nodeIntegration.
 ├── tabs-shell.js             # Tabbed shell: one BrowserWindow + tab-bar strip + WebContentsView per profile (layout: tabs).
 ├── tabs-shell-preload.js     # Preload for the tab-bar strip.
@@ -49,17 +49,19 @@ No transpilation, no bundler — Electron runs plain Node.js. The whole
    └─ resolve initial profile: --profile= CLI wins, else Settings → startup.profileId, else default
    └─ apply CLI switches (--no-sandbox, --disable-dev-shm-usage)
    └─ app.whenReady()
-       └─ openProfile(initialProfileId)
-           ├─ createMainWindow({ profileId })
-           │   └─ session.fromPartition('persist:<id>')
-           │   └─ install UA spoofing
-           │   └─ install external link interceptors
-           │   └─ loadURL('https://web.whatsapp.com')
-           └─ attachNotificationBridge(win)
-               └─ installPermissionHandlers(session)   # notifications + media, single owner per session
-                   └─ setPermissionRequestHandler  (media: first-use Allow/Deny prompt via media-prompt.js, persisted to settings)
-                   └─ setPermissionCheckHandler     (notifications + per-type media gating, settings live)
-               └─ webContents.on('notification', ...) → event.preventDefault(), then showNativeNotification (settings-aware)
+       └─ openProfileTab(initialProfileId)            # layout-aware entry (bootstrap)
+           ├─ [switch/windows] openProfile(id) → createMainWindow({ profileId })  # one BrowserWindow per profile
+           └─ [tabs]          ensureShell() → createProfileView(id)              # one shell window + WebContentsView per profile
+               └─ both paths share the same webContents setup:
+                   └─ session.fromPartition('persist:<id>')   # default → session.defaultSession
+                   └─ install UA spoofing
+                   └─ install external link interceptors
+                   └─ loadURL('https://web.whatsapp.com')
+                   └─ attachNotificationBridge(wc)
+                       └─ installPermissionHandlers(session)   # notifications + media, single owner per session
+                           └─ setPermissionRequestHandler  (media: first-use Allow/Deny prompt via media-prompt.js, persisted to settings)
+                           └─ setPermissionCheckHandler     (notifications + per-type media gating, settings live)
+                       └─ webContents.on('notification', ...) → event.preventDefault(), then showNativeNotification (settings-aware)
        └─ installAppMenu({ currentWindow, openProfile, switchToProfile, openSettingsWindow, onProfilesChanged })
        └─ createTray(quitApp, showActiveProfile, { getProfiles, switchProfile, getActiveId })  # per-profile list
        └─ ipcMain.handle('settings-get' / 'settings-save')                                   # for the Settings window

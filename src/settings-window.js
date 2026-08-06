@@ -103,7 +103,7 @@ function openSettingsWindow(parent) {
   <div class="row">
     <label><input type="radio" name="layout" value="windows" /> Windows — one window per profile, side by side</label>
   </div>
-  <div class="hint">Applies on the next Open Tab. Open windows are not migrated live.</div>
+  <div class="hint">Applies on the next Open Profile. Open windows are not migrated live.</div>
   <div class="row">
     <label for="startupProfile">Open this profile on launch</label>
     <select class="ctrl" id="startupProfile"></select>

@@ -55,7 +55,7 @@ Bir tarayıcı sekmesi WhatsApp masaüstü deneyiminin çoğunu verir — gerçe
 
 - **Çoklu profil** — iki veya daha fazla WhatsApp hesabı, her biri kendi izole Electron partition'ında. Menüden, tray'den veya CLI'dan geç
 - **Yapılandırılabilir layout** — Ayarlar'dan profil görüntüleme: **Switch** (tek görünür, varsayılan), **Tabs** (tek pencere, Chrome gibi sekme çubuğu) veya **Windows** (her profil ayrı pencere, yan yana)
-- **Sekme aç…** — `Ctrl+T` veya tray menüsü profil seçici açar; mevcut hesabı kapatmadan başka hesap aç
+- **Profil aç…** — `Ctrl+T` veya tray menüsü profil seçici açar; mevcut hesabı kapatmadan başka hesap aç
 - **Masaüstüne sabitle** — herhangi bir profili "Whatsuck (Work)" olarak uygulama menüsüne sabitle
 - **Açılış profili** — sade launch'te hangi hesabın açılacağını seç (Ayarlar → *Açılışta bu profili aç*)
 - **Gerçek bildirimler** — gelen mesajlar OS bildirim merkezine (libnotify / GNOME Shell / KDE) Whatsuck ikonuyla düşer; bildirime tıklamak doğru pencereyi öne getirir
@@ -125,7 +125,7 @@ sudo apt-get install -f   # eksik runtime bağımlılıklarını çöz
 ./uninstall.sh
 ```
 
-Kaldırıcı, WhatsApp oturum verisini (profiller, çerezler, girişler) saklayıp saklamayacağını etkileşimli sorar. Veriyi tutarsan yeniden kurulumda oturumların korunur.
+Kaldırıcı, WhatsApp oturum verisini (profiller, çerezler, girişler) saklayıp saklamayacağını ve pinlenmiş profil kısayollarının kaldırılıp kaldırılmayacağını etkileşimli sorar. Veriyi tutarsan yeniden kurulumda oturumların korunur.
 
 ---
 
@@ -135,7 +135,7 @@ Kaldırıcı, WhatsApp oturum verisini (profiller, çerezler, girişler) saklay�
 |---|---|
 | **OS** | Ubuntu 22.04 / 24.04, Debian 12 (x86_64). Diğer Debian-türevleri çalışabilir ama test edilmemiştir |
 | **Paket** | Yalnızca `.deb` (macOS/Windows yol haritasında) |
-| **Kurulum bağımlılığı** | `curl` veya `wget`, `dpkg` |
+| **Kurulum bağımlılığı** | `curl` veya `wget`, `dpkg`, `sudo` |
 | **Bildirimler** | `libnotify-bin` (çoğunlukla önceden kurulu); çalışan bir bildirim daemon'ı |
 | **Çerez şifreleme** | `libsecret` + GNOME Keyring veya KWallet (isteğe bağlı — yoksa uyarıyla plaintext'e düşer) |
 | **Tray ikonu** | X11 kutudan çıkar. GNOME Wayland'de `libayatana-appindicator3-1` ve *AppIndicator* uzantısını kur, yoksa tray devre dışı kalır ve kapatma taskbar'a minimize eder |
@@ -200,7 +200,7 @@ Tüm pencere için **Ayarlar → Ayarları Aç…**'ı aç, ya da Ayarlar menüs
 | Mikrofon | WhatsApp Web sesli aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir. Bir değişikliği kaydetmek uygulamayı yeniden başlatır; böylece WhatsApp cihazı yeniden ister |
 | Kamera | WhatsApp Web görüntülü aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir. Bir değişikliği kaydetmek uygulamayı yeniden başlatır; böylece WhatsApp cihazı yeniden ister |
 | Açılışta bu profili aç | Sade launch'te hangi profil açılır (`--profile=` CLI geçersiz kılar) |
-| Layout | Switch (tek görünür) / Tabs (tek pencere, Chrome gibi) / Windows (yan yana). Bir sonraki Sekme Aç'ta etkili |
+| Layout | Switch (tek görünür) / Tabs (tek pencere, Chrome gibi) / Windows (yan yana). Bir sonraki Profil Aç'ta etkili |
 | Minimize'de Esc | Minimize ettiğinde Esc basar, açık sohbet seçimsiz kalır |
 | Kapat düğmesi | *Tray'e gizle* (çalışmaya devam, varsayılan) veya *Uygulamadan çık* |
 

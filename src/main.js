@@ -306,7 +306,7 @@ function tabList() {
 
 /**
  * Open a profile as a new tab/window per the current layout. The menu
- * "Open Tab…" (Ctrl+T) and the tray "Open Profile…" use this.
+ * "Open Profile…" (Ctrl+T) and the tray entry both call this.
  */
 function openProfileTab(profileId) {
   if (layout() === 'tabs') {

@@ -62,7 +62,7 @@ function installAppMenu({
       label: 'Profiles',
       submenu: [
         {
-          label: 'Open Tab…',
+          label: 'Open Profile…',
           accelerator: 'CmdOrCtrl+T',
           click: () => { if (openProfileTabPicker) openProfileTabPicker(); },
         },
@@ -185,7 +185,7 @@ function installAppMenu({
         label: 'File',
         submenu: [
           {
-            label: 'New Window',
+            label: 'Open Profile…',
             accelerator: 'CmdOrCtrl+N',
             click: () => { if (openProfileTabPicker) openProfileTabPicker(); },
           },

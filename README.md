@@ -55,7 +55,7 @@ The headline feature is **multiple WhatsApp accounts in one app**. Each profile 
 
 - **Multi-profile** — two or more WhatsApp accounts, each in its own isolated Electron partition. Switch from the menu, the tray, or the CLI
 - **Configurable layout** — choose in Settings how profiles are displayed: **Switch** (one visible at a time, default), **Tabs** (one window with a Chrome-like tab bar), or **Windows** (one window per profile, side by side)
-- **Open Tab…** — `Ctrl+T` or the tray menu opens a profile picker so you can open another account without closing the current one
+- **Open Profile…** — `Ctrl+T` or the tray menu opens a profile picker so you can open another account without closing the current one
 - **Pin to desktop** — pin any profile to your app menu as "Whatsuck (Work)"
 - **Startup profile** — choose which account opens on bare launch (Settings → *Open this profile on launch*)
 - **Real notifications** — incoming messages hit the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon; clicking a notification raises the right window
@@ -125,7 +125,7 @@ sudo apt-get install -f   # resolve missing runtime deps
 ./uninstall.sh
 ```
 
-The uninstaller asks interactively whether to keep or delete your WhatsApp session data (profiles, cookies, logins). Reinstalling later preserves your sessions if you keep the data.
+The uninstaller asks interactively whether to keep or delete your WhatsApp session data (profiles, cookies, logins), and whether to remove any pinned profile shortcuts. Reinstalling later preserves your sessions if you keep the data.
 
 ---
 
@@ -135,7 +135,7 @@ The uninstaller asks interactively whether to keep or delete your WhatsApp sessi
 |---|---|
 | **OS** | Ubuntu 22.04 / 24.04, Debian 12 (x86_64). Other Debian-likes may work but are untested |
 | **Package** | `.deb` only (macOS/Windows on the roadmap) |
-| **Install deps** | `curl` or `wget`, `dpkg` |
+| **Install deps** | `curl` or `wget`, `dpkg`, `sudo` |
 | **Notifications** | `libnotify-bin` (usually preinstalled); a running notification daemon |
 | **Cookie encryption** | `libsecret` + GNOME Keyring or KWallet (optional — falls back to plaintext with a warning) |
 | **Tray icon** | X11 works out of the box. On GNOME Wayland install `libayatana-appindicator3-1` and the *AppIndicator* extension, or the tray is disabled and closing minimizes to the taskbar instead |
@@ -200,7 +200,7 @@ Open **Settings → Open Settings…** for the full window, or use the quick tog
 | Microphone | Allow/deny WhatsApp Web voice calls. First call prompts; this toggle overrides anytime. Saving a change restarts the app so WhatsApp re-requests the device |
 | Camera | Allow/deny WhatsApp Web video calls. First call prompts; this toggle overrides anytime. Saving a change restarts the app so WhatsApp re-requests the device |
 | Open this profile on launch | Which profile opens on bare launch (`--profile=` CLI overrides it) |
-| Layout | Switch (one visible) / Tabs (one window, Chrome-like) / Windows (side by side). Applies on the next Open Tab |
+| Layout | Switch (one visible) / Tabs (one window, Chrome-like) / Windows (side by side). Applies on the next Open Profile |
 | Esc on minimize | Press Esc when minimizing so the open chat is deselected |
 | Close button | *Hide to tray* (keep running, default) or *Quit the app* |
 
