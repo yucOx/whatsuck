@@ -69,7 +69,7 @@ function profileWebPrefs(profileId) {
 // External link handling — only http(s) to non-WhatsApp hosts leave the
 // app via xdg-open; everything else stays in-app. Shared by the
 // BrowserWindow and WebContentsView paths.
-function attachExternalLinkHandlers(wc) {
+function attachExternalLinkHandlers(wc, profileId) {
   const isExternal = (url) => {
     try {
       const u = new URL(url);
@@ -77,6 +77,20 @@ function attachExternalLinkHandlers(wc) {
           && u.host !== 'web.whatsapp.com';
     } catch {
       return true;
+    }
+  };
+
+  // Same-origin popups (WhatsApp opens voice/video calls in a new window).
+  // Allow those so calls work; about:blank is the bootstrap URL WhatsApp
+  // sometimes opens before navigating to the call UI.
+  const isWhatsAppOrigin = (url) => {
+    if (url === 'about:blank') return true;
+    try {
+      const u = new URL(url);
+      return (u.protocol === 'http:' || u.protocol === 'https:')
+          && (u.host === 'web.whatsapp.com' || u.host.endsWith('.whatsapp.com'));
+    } catch {
+      return false;
     }
   };
 
@@ -88,10 +102,31 @@ function attachExternalLinkHandlers(wc) {
   });
 
   wc.setWindowOpenHandler(({ url }) => {
+    if (isWhatsAppOrigin(url)) {
+      // Electron 14+ popups inherit NO window options from the parent, so
+      // pass our strict webPreferences explicitly (sandbox, no node, the
+      // profile's partition) plus a clean, icon'd, menu-less frame.
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          title: C.productName,
+          icon: C.iconPath,
+          autoHideMenuBar: true,
+          webPreferences: profileWebPrefs(profileId),
+        },
+      };
+    }
     if (isExternal(url)) {
       try { shell.openExternal(url); } catch {}
     }
     return { action: 'deny' };
+  });
+
+  // The call popup shares the profile's session, so the media/notifications
+  // permission handlers already apply. Re-attach the link guard so a call
+  // window can't navigate the app off-site or spawn unguarded popups.
+  wc.on('did-create-window', (childWin) => {
+    attachExternalLinkHandlers(childWin.webContents, profileId);
   });
 }
 
@@ -102,9 +137,9 @@ function attachExternalLinkHandlers(wc) {
  *
  * @param {Electron.WebContents} wc
  */
-function loadWhatsApp(wc) {
+function loadWhatsApp(wc, profileId) {
   wc.setUserAgent(CHROME_UA);
-  attachExternalLinkHandlers(wc);
+  attachExternalLinkHandlers(wc, profileId);
   wc.loadURL(C.whatsAppUrl);
 }
 
@@ -128,7 +163,7 @@ function createMainWindow({ profileId = 'default', onClosed } = {}) {
     webPreferences: profileWebPrefs(profileId),
   });
   win._profileId = profileId;
-  loadWhatsApp(win.webContents);
+  loadWhatsApp(win.webContents, profileId);
   win.once('ready-to-show', () => win.show());
   win.on('closed', () => { if (onClosed) onClosed(); });
   return win;
@@ -145,7 +180,7 @@ function createMainWindow({ profileId = 'default', onClosed } = {}) {
 function createProfileView(profileId) {
   const view = new WebContentsView({ webPreferences: profileWebPrefs(profileId) });
   view._profileId = profileId;
-  loadWhatsApp(view.webContents);
+  loadWhatsApp(view.webContents, profileId);
   return view;
 }
 

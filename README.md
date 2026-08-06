@@ -59,8 +59,9 @@ The headline feature is **multiple WhatsApp accounts in one app**. Each profile 
 - **Pin to desktop** — pin any profile to your app menu as "Whatsuck (Work)"
 - **Startup profile** — choose which account opens on bare launch (Settings → *Open this profile on launch*)
 - **Real notifications** — incoming messages hit the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon; clicking a notification raises the right window
-- **Configurable notifications** — enable/disable, sound on/off, and a per-notification cooldown (default 1/s) to prevent DoS
-- **Voice/video calling** — first call asks for microphone/camera access (Allow/Deny, remembered per device); toggle each independently in Settings
+- **Configurable notifications** — enable/disable and a per-notification cooldown (default 1/s) to prevent DoS
+- **Notification sound** — turn it off to mute WhatsApp Web's in-page message beep; note this also mutes voice messages and call audio, so it asks for confirmation first
+- **Voice/video calling** — calls open in their own dedicated window; the first call asks for microphone/camera access (Allow/Deny, remembered per device), and each device can be toggled independently in Settings
 - **External links** — URLs in chat open in your default browser, not inside the app
 
 ### 🖥️ System integration
@@ -79,6 +80,7 @@ The headline feature is **multiple WhatsApp accounts in one app**. Each profile 
 - **Isolated dialogs** — profile input and the Settings window use preload + `contextBridge`; renderers have zero Node.js access
 - **Locked-down permissions** — `notifications` and `media` (mic/camera) are gated on your Settings; every other permission is denied. First use of a media device prompts Allow/Deny and remembers your choice
 - **External links** — only `http`/`https` to non-WhatsApp hosts leave the app, via `shell.openExternal`
+- **Same-origin popups** — only WhatsApp's own call-window popups are allowed; every other `window.open` is sent to the browser or blocked
 
 ### ⚙️ Technical
 
@@ -195,7 +197,7 @@ Open **Settings → Open Settings…** for the full window, or use the quick tog
 | Setting | What it controls |
 |---|---|
 | Notifications enabled | Master switch for OS notifications |
-| Notification sound | Play a sound with each notification (best-effort on Linux; some desktops ignore `silent`) |
+| Notification sound | Off mutes **all** of WhatsApp Web's in-page audio — the message beep, voice messages, and call audio — not just the notification ping. Turning it off asks for confirmation |
 | Min delay between notifications | Cooldown in ms (default 1000) — throttles bursts |
 | Microphone | Allow/deny WhatsApp Web voice calls. First call prompts; this toggle overrides anytime. Saving a change restarts the app so WhatsApp re-requests the device |
 | Camera | Allow/deny WhatsApp Web video calls. First call prompts; this toggle overrides anytime. Saving a change restarts the app so WhatsApp re-requests the device |
@@ -214,7 +216,7 @@ WhatsApp Web creates notifications through the browser Notifications API. Whatsu
 
 1. The renderer fires a `notification` event on the window's `webContents`.
 2. The bridge calls `event.preventDefault()` so Electron does **not** show its own notification (which would ignore our settings and carry no click handler).
-3. If notifications are enabled, we emit our own `Notification` with `silent: true` when sound is off, throttled by the cooldown.
+3. If notifications are enabled, we emit our own `Notification` (throttled by the cooldown). The sound toggle is separate: **Notification sound** off mutes the page's audio entirely (`webContents.setAudioMuted`) — the only reliable way to silence WhatsApp Web's in-page message beep — at the cost of also muting voice messages and call audio, so it confirms first.
 4. The notification's click handler restores + raises the correct profile window (the window that produced the notification), even if it was hidden to tray.
 
 This is why "Notifications enabled: off" actually stops them, and why clicking a notification reliably brings the right window to front instead of doing nothing.
@@ -318,6 +320,8 @@ Screenshots coming soon. The app window is WhatsApp Web; the notable UI surfaces
 ## ❓ FAQ
 
 **Notifications don't appear.** Make sure `libnotify-bin` is installed: `sudo apt install libnotify-bin`. On minimal Ubuntu Server, the notification daemon may not be running.
+
+**I turned off "Notification sound" and now calls/voice messages are silent.** Expected — that toggle mutes all of WhatsApp Web's in-page audio (the message beep, voice messages, and call audio), not just the notification ping. Turn it back on to restore call and voice audio.
 
 **The tray icon is missing.** You're likely on GNOME Wayland without AppIndicator. Install `sudo apt install libayatana-appindicator3-1` and enable the *AppIndicator* extension, then restart. Without a tray, closing the window minimizes to the taskbar instead of hiding.
 

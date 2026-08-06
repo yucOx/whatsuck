@@ -59,8 +59,9 @@ Bir tarayıcı sekmesi WhatsApp masaüstü deneyiminin çoğunu verir — gerçe
 - **Masaüstüne sabitle** — herhangi bir profili "Whatsuck (Work)" olarak uygulama menüsüne sabitle
 - **Açılış profili** — sade launch'te hangi hesabın açılacağını seç (Ayarlar → *Açılışta bu profili aç*)
 - **Gerçek bildirimler** — gelen mesajlar OS bildirim merkezine (libnotify / GNOME Shell / KDE) Whatsuck ikonuyla düşer; bildirime tıklamak doğru pencereyi öne getirir
-- **Yapılandırılabilir bildirimler** — aç/kapa, ses aç/kapa ve bildirim başına cooldown (varsayılan 1/sn) ile DoS koruması
-- **Sesli/görüntülü arama** — ilk arama mikrofon/kamera erişimi ister (İzin Ver/Reddet, cihaz başına hatırlanır); her birini Ayarlar'dan ayrı aç/kapa
+- **Yapılandırılabilir bildirimler** — aç/kapa ve bildirim başına cooldown (varsayılan 1/sn) ile DoS koruması
+- **Bildirim sesi** — kapat WhatsApp Web'in sayfa içi mesaj sesini susturur; not: sesli mesajları ve arama sesini de susturur, bu yüzden önce onay sorar
+- **Sesli/görüntülü arama** — aramalar kendi özel penceresinde açılır; ilk arama mikrofon/kamera erişimi ister (İzin Ver/Reddet, cihaz başına hatırlanır), her cihazı Ayarlar'dan ayrı aç/kapa edebilirsin
 - **Harici linkler** — sohbetteki URL'ler uygulama içinde değil varsayılan tarayıcıda açılır
 
 ### 🖥️ Sistem entegrasyonu
@@ -79,6 +80,7 @@ Bir tarayıcı sekmesi WhatsApp masaüstü deneyiminin çoğunu verir — gerçe
 - **İzole diyaloglar** — profil girişi ve Ayarlar penceresi preload + `contextBridge` kullanır; renderer'ların Node.js erişimi sıfırdır
 - **Kilitli izinler** — `notifications` ve `media` (mikrofon/kamera) Ayarlar'a bağlı; diğer tüm izinler reddedilir. İlk medya kullanımında İzin Ver/Reddet sorulur, cevap hatırlanır
 - **Harici linkler** — yalnızca `http`/`https` ve WhatsApp dışı hostlar uygulamadan `shell.openExternal` ile çıkar
+- **Aynı kökenli pop-up'lar** — yalnızca WhatsApp'ın kendi çağrı penceresi pop-up'larına izin verilir; diğer tüm `window.open` çağrıları tarayıcıya gönderilir veya engellenir
 
 ### ⚙️ Teknik
 
@@ -195,7 +197,7 @@ Tüm pencere için **Ayarlar → Ayarları Aç…**'ı aç, ya da Ayarlar menüs
 | Ayar | Ne kontrol eder |
 |---|---|
 | Bildirimler açık | OS bildirimleri ana anahtarı |
-| Bildirim sesi | Her bildirimde ses çal (Linux'ta elden geldiğince; bazı masaüstleri `silent`'ı görmezden gelir) |
+| Bildirim sesi | Kapalı, WhatsApp Web'in sayfa içi sesinin **tümünü** susturur — mesaj sesi, sesli mesajlar ve arama sesi; yalnız bildirim ping'i değil. Kapatırken onay sorar |
 | Bildirimler arası min gecikme | ms cinsinden cooldown (varsayılan 1000) — patlamaları yavaşlatır |
 | Mikrofon | WhatsApp Web sesli aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir. Bir değişikliği kaydetmek uygulamayı yeniden başlatır; böylece WhatsApp cihazı yeniden ister |
 | Kamera | WhatsApp Web görüntülü aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir. Bir değişikliği kaydetmek uygulamayı yeniden başlatır; böylece WhatsApp cihazı yeniden ister |
@@ -214,7 +216,7 @@ WhatsApp Web bildirimleri tarayıcı Notifications API'siyle oluşturur. Whatsuc
 
 1. Renderer, pencerenin `webContents`'inde bir `notification` event'i fırlatır.
 2. Bridge `event.preventDefault()` çağırır; böylece Electron kendi bildirimini göstermez (bu bizim ayarlarımızı görmezden gelir ve click handler taşımaz).
-3. Bildirimler açıksa, ses kapalıyken `silent: true` ile kendi `Notification`'ımızı yayınlarız, cooldown ile sınırlarız.
+3. Bildirimler açıksa, kendi `Notification`'ımızı yayınlarız (cooldown ile sınırlarız). Ses toggle'ı ayrıdır: **Bildirim sesi** kapalı, sayfanın sesini tamamen kısıtlar (`webContents.setAudioMuted`) — WhatsApp Web'in sayfa içi mesaj sesini susturmanın tek güvenilir yolu budur; ama sesli mesajları ve arama sesini de susturduğu için önce onaylar.
 4. Bildirimin click handler'ı, tray'e gizli bile olsa doğru profil penceresini geri getirir ve öne taşır.
 
 Bu yüzden "Bildirimler açık: kapalı" gerçekten durdurur ve bildirime tıklamak hiçbir şey yapmak yerine doğru pencereyi getirir.
@@ -316,6 +318,8 @@ Ekran görüntüleri yakında. Uygulama penceresi WhatsApp Web; dikkat çekici U
 ## ❓ SSS
 
 **Bildirimler görünmüyor.** `libnotify-bin` kurulu olduğundan emin ol: `sudo apt install libnotify-bin`. Minimal Ubuntu Server'da bildirim daemon'ı çalışmıyor olabilir.
+
+**"Bildirim sesi"ni kapattım, artık aramalar/sesli mesajlar sessiz.** Beklenen davranış — bu toggle yalnız bildirim ping'ini değil, WhatsApp Web'in tüm sayfa içi sesini (mesaj sesi, sesli mesajlar ve arama sesi) susturur. Arama ve sesli mesaj sesini geri getirmek için tekrar aç.
 
 **Tray ikonu yok.** Muhtemelen AppIndicator'sız GNOME Wayland'desin. `sudo apt install libayatana-appindicator3-1` kur ve *AppIndicator* uzantısını etkinleştir, sonra yeniden başlat. Tray olmadan pencereyi kapatmak taskbar'a minimize eder.
 
