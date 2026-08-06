@@ -115,7 +115,7 @@ The setup script checks for `curl`/`wget` and `dpkg`, downloads the latest `.deb
 ### Manual install
 
 ```bash
-sudo dpkg -i whatsuck_1.0.9_amd64.deb
+sudo dpkg -i whatsuck_1.0.10_amd64.deb
 sudo apt-get install -f   # resolve missing runtime deps
 ```
 
@@ -269,7 +269,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install        # Node 18+, npm
 npm start          # dev mode (auto-update and keyring warnings skipped)
-npm run build      # produces dist/whatsuck_1.0.9_amd64.deb
+npm run build      # produces dist/whatsuck_1.0.10_amd64.deb
 ```
 
 Build prerequisites: Node 18+, npm, and `dpkg` (electron-builder shells out to it for the `.deb`). On Debian/Ubuntu that's already present.
@@ -288,13 +288,13 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map and data flow, and [CL
 Releases are automated via GitHub Actions on `v*` tag push:
 
 ```bash
-# 1. Bump version in package.json (e.g. 1.0.8 → 1.0.9)
+# 1. Bump version in package.json (e.g. 1.0.9 → 1.0.10)
 # 2. Update the deb filename in README.md and README.tr.md to match
 # 3. Commit, tag, push:
-git commit -am "v1.0.9: description"
-git tag v1.0.9
+git commit -am "v1.0.10: description"
+git tag v1.0.10
 git push origin main
-git push origin v1.0.9
+git push origin v1.0.10
 ```
 
 Actions runs `npm ci` → `npm run build` → creates a GitHub Release with the `.deb` attached. Don't delete and recreate a tag with the same name — force-move it (`git tag -f`) if you must retrigger.

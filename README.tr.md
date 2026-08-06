@@ -115,7 +115,7 @@ Setup betiği `curl`/`wget` ve `dpkg` kontrol eder, GitHub releases'ten son `.de
 ### Manuel kurulum
 
 ```bash
-sudo dpkg -i whatsuck_1.0.9_amd64.deb
+sudo dpkg -i whatsuck_1.0.10_amd64.deb
 sudo apt-get install -f   # eksik runtime bağımlılıklarını çöz
 ```
 
@@ -267,7 +267,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install        # Node 18+, npm
 npm start          # dev modu (auto-update ve keyring uyarıları atlanır)
-npm run build      # dist/whatsuck_1.0.9_amd64.deb üretir
+npm run build      # dist/whatsuck_1.0.10_amd64.deb üretir
 ```
 
 Build önkoşulları: Node 18+, npm ve `dpkg` (electron-builder `.deb` için ona çıkar). Debian/Ubuntu'da zaten vardır.
@@ -286,13 +286,13 @@ Modül haritası ve veri akışı için [ARCHITECTURE.md](ARCHITECTURE.md), katk
 Release'ler `v*` tag push'unda GitHub Actions ile otomatiktir:
 
 ```bash
-# 1. package.json'da sürümü bumpla (ör. 1.0.8 → 1.0.9)
+# 1. package.json'da sürümü bumpla (ör. 1.0.9 → 1.0.10)
 # 2. README.md ve README.tr.md'deki deb dosya adını güncelle
 # 3. Commit, tag, push:
-git commit -am "v1.0.9: değişiklik açıklaması"
-git tag v1.0.9
+git commit -am "v1.0.10: değişiklik açıklaması"
+git tag v1.0.10
 git push origin main
-git push origin v1.0.9
+git push origin v1.0.10
 ```
 
 Actions `npm ci` → `npm run build` → `.deb` eklenmiş bir GitHub Release oluşturur. Aynı isimde tag'i silip yeniden oluşturma — yeniden tetiklemek gerekirse force-move et (`git tag -f`).
