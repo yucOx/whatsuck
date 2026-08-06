@@ -56,6 +56,9 @@ async function resolveMedia(wc, details, promptMedia, callback) {
   const types = (details && Array.isArray(details.mediaTypes)) ? details.mediaTypes : [];
   const settings = loadSettings();
   const parent = BrowserWindow.fromWebContents(wc);
+  // Whether we actually showed a prompt (i.e. this was a first-use decision
+  // that changed the persisted state). Only then does the page need a reload.
+  let prompted = false;
 
   for (const t of types) {
     const key = deviceKey(t);
@@ -71,6 +74,7 @@ async function resolveMedia(wc, details, promptMedia, callback) {
         }
       }
       settings.media[key] = !!allow;
+      prompted = true;
       try {
         saveSettings(settings);
       } catch (err) {
@@ -84,6 +88,19 @@ async function resolveMedia(wc, details, promptMedia, callback) {
     return key ? settings.media[key] === true : false;
   });
   callback(granted);
+
+  // WhatsApp Web caches its navigator.permissions.query() result from page-load
+  // time. On first use the page loaded before this grant, so its cached state
+  // was non-granted — the "izin ver / yeniden yükleyin" banner would stick
+  // until a reload. Reloading after a first-use decision refreshes that state.
+  // Only fires when a prompt actually changed something, never on repeat calls.
+  if (prompted) {
+    try {
+      wc.reload();
+    } catch (err) {
+      console.error(`[permissions] post-grant reload failed: ${err.message}`);
+    }
+  }
 }
 
 /**
