@@ -74,6 +74,7 @@ function openSettingsWindow(parent) {
     <label for="notifSound">Notification sound</label>
     <input class="ctrl" id="notifSound" type="checkbox" />
   </div>
+  <div class="hint">⚠️ Kapalıyken sesli mesaj ve aramalar da duyulmaz (sayfanın tüm sesi kapatılır).</div>
   <div class="row">
     <label for="cooldown">Min delay between notifications (ms)</label>
     <input class="ctrl" id="cooldown" type="number" min="0" step="100" />
@@ -153,14 +154,7 @@ function openSettingsWindow(parent) {
       document.querySelectorAll('input[name="layout"]').forEach((r) => {
         r.checked = (r.value === settings.ui.layout);
       });
-      syncSoundEnabled();
     }
-    function syncSoundEnabled() {
-      const on = $('notifEnabled').checked;
-      $('notifSound').disabled = !on;
-      if (!on) $('notifSound').checked = false;
-    }
-    $('notifEnabled').addEventListener('change', syncSoundEnabled);
 
     function collect() {
       const close = document.querySelector('input[name="closeBehavior"]:checked');
@@ -183,8 +177,14 @@ function openSettingsWindow(parent) {
     }
 
     $('save').addEventListener('click', async () => {
+      const next = collect();
+      // Confirm before muting page audio (also silences voice messages + calls).
+      if (initial && initial.notifications.sound === true && next.notifications.sound === false) {
+        const ok = await window.settings.confirmSoundOff();
+        if (!ok) return; // keep the window open; don't save.
+      }
       $('save').disabled = true;
-      await window.settings.save(collect());
+      await window.settings.save(next);
       window.close();
     });
     $('cancel').addEventListener('click', () => window.close());

@@ -28,11 +28,16 @@ const LAYOUTS = ['switch', 'tabs', 'windows'];
  * @param {Function} options.onProfilesChanged  - Rebuild app menu + tray.
  * @param {Function} options.closeProfile       - Close a profile's window/tab.
  * @param {Function} options.quitApp            - Quit the app.
+ * @param {Function} [options.confirmSoundOff]  - Async (parent) => Promise<boolean>;
+ *   confirms before muting page audio (sound off). Undefined ⇒ no gate.
+ * @param {Function} [options.applySoundMute]   - Apply sound-on/off to all live
+ *   profile webContents after the toggle.
  */
 function installAppMenu({
   currentWindow, getActiveProfileId, getActiveWebContents,
   switchToProfile, openProfileTabPicker, openSettingsWindow,
   onProfilesChanged, closeProfile, quitApp,
+  confirmSoundOff, applySoundMute,
 } = {}) {
   const profilesChanged = () => {
     if (onProfilesChanged) onProfilesChanged();
@@ -278,12 +283,23 @@ function installAppMenu({
             label: 'Notification Sound',
             type: 'checkbox',
             checked: loadSettings().notifications.sound,
-            enabled: loadSettings().notifications.enabled,
-            click: (item) => {
+            // Sound gates page audio (incl. the message beep), independent of
+            // whether OS notifications are on — so don't disable it here.
+            click: async (item) => {
+              // Turning sound off also mutes voice messages + calls; confirm.
+              if (!item.checked && confirmSoundOff) {
+                const ok = await confirmSoundOff(currentWindow ? currentWindow() : null);
+                if (!ok) {
+                  item.checked = true; // revert (the click unchecked it).
+                  rebuildMenu();
+                  return;
+                }
+              }
               const s = loadSettings();
               s.notifications.sound = item.checked;
               saveSettings(s);
               rebuildMenu();
+              if (applySoundMute) applySoundMute();
             },
           },
           {

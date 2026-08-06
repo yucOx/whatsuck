@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 
 const C = require('./constants');
 const { createMainWindow, createProfileView } = require('./window');
@@ -184,6 +184,7 @@ function openProfile(profileId) {
   registerWindow(win);
   attachNotificationBridge(win.webContents, () => raiseProfile(profileId),
     { promptMedia: promptMediaPermission });
+  applySoundMute();
   return win;
 }
 
@@ -256,6 +257,7 @@ function openTabInShell(profileId) {
   viewsByProfile.set(profileId, view);
   attachNotificationBridge(view.webContents, () => raiseProfile(profileId),
     { promptMedia: promptMediaPermission });
+  applySoundMute();
   setActiveTab(profileId);
 }
 
@@ -396,6 +398,63 @@ function quitApp() {
   app.quit();
 }
 
+/**
+ * Apply the "sound off" setting to every live profile webContents.
+ *
+ * WhatsApp Web's incoming-message beep is in-page audio, not the OS
+ * notification sound, so muting the page (webContents.setAudioMuted) is the
+ * only reliable way to honor notifications.sound=false. Covers both layouts:
+ * BrowserWindow-per-profile (switch/windows) and WebContentsView tabs.
+ */
+function applySoundMute() {
+  const muted = loadSettings().notifications.sound === false;
+  for (const win of windowsByProfile.values()) {
+    if (!win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
+      win.webContents.setAudioMuted(muted);
+    }
+  }
+  for (const v of viewsByProfile.values()) {
+    if (v.webContents && !v.webContents.isDestroyed()) {
+      v.webContents.setAudioMuted(muted);
+    }
+  }
+}
+
+/**
+ * Best window to parent a settings dialog on: the focused window, else the
+ * first live profile window, else null (app-modal).
+ *
+ * @returns {BrowserWindow | null}
+ */
+function getActiveProfileWindow() {
+  const focused = BrowserWindow.getFocusedWindow();
+  if (focused && !focused.isDestroyed()) return focused;
+  for (const win of windowsByProfile.values()) {
+    if (win && !win.isDestroyed()) return win;
+  }
+  return null;
+}
+
+/**
+ * Confirm before turning notification sound off — muting the page also
+ * silences voice messages and call audio. Returns true to proceed.
+ *
+ * @param {BrowserWindow} [parent]
+ * @returns {Promise<boolean>}
+ */
+async function confirmSoundOff(parent) {
+  const { response } = await dialog.showMessageBox(parent || null, {
+    type: 'warning',
+    buttons: ['İptal', 'Sesi kapat'],
+    defaultId: 0,
+    cancelId: 0,
+    title: 'Bildirim sesi',
+    message: 'Bildirim sesi kapatılsın mı?',
+    detail: 'Not: ses kapalıyken sesli mesajlar ve aramalar da duyulmaz (sayfanın tüm sesi kapatılır).',
+  });
+  return response === 1;
+}
+
 // --- IPC for the Settings window ---
 ipcMain.handle('settings-get', () => ({
   settings: loadSettings(),
@@ -426,6 +485,9 @@ ipcMain.handle('settings-save', (_event, s) => {
     return false;
   }
   refreshAllMenus();
+  // notifications.sound change must reach every open profile's page audio
+  // live (no restart needed, unlike media). See applySoundMute.
+  applySoundMute();
   // Media permission changes need WhatsApp Web to re-request the device,
   // which only happens on a fresh page/session. Relaunch the whole app so
   // the new state is applied reliably across every open profile. Other
@@ -437,11 +499,16 @@ ipcMain.handle('settings-save', (_event, s) => {
   return true;
 });
 
+// Confirm before muting page audio from the Settings window (sound true→false).
+ipcMain.handle('settings-confirm-sound-off', async () =>
+  confirmSoundOff(getActiveProfileWindow()));
+
 // --- IPC for the profile picker ---
 ipcMain.handle('profile-picker-get', () => loadProfiles());
 
 function bootstrap() {
   openProfileTab(initialProfileId);
+  applySoundMute();
 
   refreshMenu = installAppMenu({
     currentWindow: getActiveWindow,
@@ -452,6 +519,8 @@ function bootstrap() {
     onProfilesChanged: refreshAllMenus,
     closeProfile,
     quitApp,
+    confirmSoundOff,
+    applySoundMute,
   }).rebuildMenu;
 
   createTray(quitApp, showActiveProfile, {

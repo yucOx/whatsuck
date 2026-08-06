@@ -20,4 +20,9 @@ contextBridge.exposeInMainWorld('settings', {
    * @returns {Promise<boolean>} true on success
    */
   save: (settings) => ipcRenderer.invoke('settings-save', settings),
+  /**
+   * Confirm before turning sound off (mutes page audio incl. calls).
+   * @returns {Promise<boolean>} true to proceed.
+   */
+  confirmSoundOff: () => ipcRenderer.invoke('settings-confirm-sound-off'),
 });
