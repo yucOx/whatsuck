@@ -39,7 +39,8 @@ setup.sh                      # One-command install (downloads from GitHub relea
 uninstall.sh                  # Interactive uninstaller (asks about data deletion).
 ```
 
-Total ~900 LOC. No transpilation, no bundler — Electron runs plain Node.js.
+No transpilation, no bundler — Electron runs plain Node.js. The whole
+`src/` tree is enumerated in the module map above.
 
 ## Data flow on startup
 
@@ -150,8 +151,8 @@ filesystem logic with no Electron dependencies beyond `app.getPath`.
 
 ```bash
 # bump version in package.json
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.0.9
+git push origin v1.0.9
 ```
 
 GitHub Actions builds the .deb and creates a release. `electron-updater`

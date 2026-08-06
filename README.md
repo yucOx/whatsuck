@@ -42,7 +42,7 @@ A browser tab gets you most of the way to a WhatsApp desktop experience — unti
 | ❌ "Works with Chrome 85+" warning | ✅ Bundled Chromium (Electron 35.7.5), no warnings |
 | ❌ Cookies cleared on browser reset | ✅ Encrypted with OS keyring, persist across restarts |
 | ❌ No app launcher entry | ✅ Real `.desktop` integration per profile |
-| ❌ No auto-update | ✅ Downloads and installs in the background, SHA512-verified |
+| ❌ No auto-update | ✅ Downloads in the background, installs on quit, SHA512-verified |
 | ❌ Closing a chat keeps you "online" | ✅ Optional Esc-on-minimize leaves the conversation |
 
 The headline feature is **multiple WhatsApp accounts in one app**. Each profile is a fully isolated session (separate cookies, localStorage, IndexedDB, HTTP cache), so you can keep your personal number and your work number a click apart — without incognito windows, a second browser, or logging out. One profile is visible at a time; switching is instant because every profile's window stays alive in the background.
@@ -60,6 +60,7 @@ The headline feature is **multiple WhatsApp accounts in one app**. Each profile 
 - **Startup profile** — choose which account opens on bare launch (Settings → *Open this profile on launch*)
 - **Real notifications** — incoming messages hit the OS notification center (libnotify / GNOME Shell / KDE) with the Whatsuck icon; clicking a notification raises the right window
 - **Configurable notifications** — enable/disable, sound on/off, and a per-notification cooldown (default 1/s) to prevent DoS
+- **Voice/video calling** — first call asks for microphone/camera access (Allow/Deny, remembered per device); toggle each independently in Settings
 - **External links** — URLs in chat open in your default browser, not inside the app
 
 ### 🖥️ System integration
@@ -81,8 +82,8 @@ The headline feature is **multiple WhatsApp accounts in one app**. Each profile 
 
 ### ⚙️ Technical
 
-- **Bundled Chromium** — Electron 35.7.5, Chromium ~130. A staleness warning fires if it ever falls 2+ majors behind stable Chrome
-- **Plain JavaScript** — no TypeScript, no bundler, no transpile. ~21 files in `src/`, ~1000 LOC
+- **Bundled Chromium** — Electron 35.7.5, Chromium ~134. A staleness warning fires if it ever falls 2+ majors behind stable Chrome
+- **Plain JavaScript** — no TypeScript, no bundler, no transpile. `src/` is plain Node you can read end to end
 - **UA spoofing** — WhatsApp Web's "works with Chrome 85+" gate rejects Electron's default UA; we spoof a standard Linux Chrome UA at both the session and webContents level
 - **Robust I/O** — corrupted `profiles.json` / `settings.json` are auto-backed-up and re-seeded rather than crash-looping
 - **Atomic writes** — all stores write to `.tmp` then `rename`
@@ -114,7 +115,7 @@ The setup script checks for `curl`/`wget` and `dpkg`, downloads the latest `.deb
 ### Manual install
 
 ```bash
-sudo dpkg -i whatsuck_1.0.6_amd64.deb
+sudo dpkg -i whatsuck_1.0.9_amd64.deb
 sudo apt-get install -f   # resolve missing runtime deps
 ```
 
@@ -196,8 +197,8 @@ Open **Settings → Open Settings…** for the full window, or use the quick tog
 | Notifications enabled | Master switch for OS notifications |
 | Notification sound | Play a sound with each notification (best-effort on Linux; some desktops ignore `silent`) |
 | Min delay between notifications | Cooldown in ms (default 1000) — throttles bursts |
-| Microphone | Allow/deny WhatsApp Web voice calls. First call prompts; this toggle overrides anytime |
-| Camera | Allow/deny WhatsApp Web video calls. First call prompts; this toggle overrides anytime |
+| Microphone | Allow/deny WhatsApp Web voice calls. First call prompts; this toggle overrides anytime. Saving a change restarts the app so WhatsApp re-requests the device |
+| Camera | Allow/deny WhatsApp Web video calls. First call prompts; this toggle overrides anytime. Saving a change restarts the app so WhatsApp re-requests the device |
 | Open this profile on launch | Which profile opens on bare launch (`--profile=` CLI overrides it) |
 | Layout | Switch (one visible) / Tabs (one window, Chrome-like) / Windows (side by side). Applies on the next Open Tab |
 | Esc on minimize | Press Esc when minimizing so the open chat is deselected |
@@ -268,7 +269,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install        # Node 18+, npm
 npm start          # dev mode (auto-update and keyring warnings skipped)
-npm run build      # produces dist/whatsuck_1.0.6_amd64.deb
+npm run build      # produces dist/whatsuck_1.0.9_amd64.deb
 ```
 
 Build prerequisites: Node 18+, npm, and `dpkg` (electron-builder shells out to it for the `.deb`). On Debian/Ubuntu that's already present.
@@ -287,13 +288,13 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map and data flow, and [CL
 Releases are automated via GitHub Actions on `v*` tag push:
 
 ```bash
-# 1. Bump version in package.json (e.g. 1.0.2 → 1.0.3)
+# 1. Bump version in package.json (e.g. 1.0.8 → 1.0.9)
 # 2. Update the deb filename in README.md and README.tr.md to match
 # 3. Commit, tag, push:
-git commit -am "v1.0.3: description"
-git tag v1.0.3
+git commit -am "v1.0.9: description"
+git tag v1.0.9
 git push origin main
-git push origin v1.0.3
+git push origin v1.0.9
 ```
 
 Actions runs `npm ci` → `npm run build` → creates a GitHub Release with the `.deb` attached. Don't delete and recreate a tag with the same name — force-move it (`git tag -f`) if you must retrigger.
@@ -324,7 +325,7 @@ Screenshots coming soon. The app window is WhatsApp Web; the notable UI surfaces
 
 **How do I see two profiles at once?** Open Settings → Layout and pick **Tabs** (one window with a tab bar) or **Windows** (separate windows side by side). The default **Switch** shows one at a time. Changing layout applies to the next profile you open (open windows aren't migrated live).
 
-**Switching profiles opens two windows.** It shouldn't — selecting a profile shows it and hides the rest. If you see two, you're on an older build; update to ≥ 1.0.2.
+**Switching profiles opens two windows.** It shouldn't — selecting a profile shows it and hides the rest. If you see two, you're on an older build; update to the latest release.
 
 **I deleted a profile by accident.** Undelete isn't supported — the session data is gone. Re-create the profile and re-scan the QR code.
 
@@ -350,7 +351,7 @@ Screenshots coming soon. The app window is WhatsApp Web; the notable UI surfaces
 
 ## 🤝 Contributing
 
-PRs welcome. The codebase is small (~1000 LOC across 21 files in `src/`); see [ARCHITECTURE.md](ARCHITECTURE.md) for the module map. Before opening a PR:
+PRs welcome. The codebase is small (plain JavaScript, no build step); see [ARCHITECTURE.md](ARCHITECTURE.md) for the module map. Before opening a PR:
 
 1. Run `npm run build` and verify the `.deb` still installs
 2. Test your change in dev mode (`npm start`)

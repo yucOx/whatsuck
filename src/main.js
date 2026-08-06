@@ -70,6 +70,15 @@ if (initialProfileId !== 'default') {
   app.commandLine.appendSwitch('class', `whatsuck-${initialProfileId}`);
 }
 
+// `whatsuck --version` — print the packaged version and exit, before the
+// single-instance lock, so it works even if another instance is running.
+// Makes the bug-report instruction in README/CONTRIBUTING ("whatsuck --version")
+// resolve to the real distributed-binary version (app.getVersion() = package.json).
+if (process.argv.includes('--version')) {
+  console.log(app.getVersion());
+  app.exit(0);
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();

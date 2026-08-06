@@ -42,7 +42,7 @@ Bir tarayıcı sekmesi WhatsApp masaüstü deneyiminin çoğunu verir — gerçe
 | ❌ "Chrome 85+ ile çalışır" uyarısı | ✅ Gömülü Chromium (Electron 35.7.5), uyarı yok |
 | ❌ Tarayıcı sıfırlamasında çerezler silinir | ✅ OS keyring ile şifrelenir, restartlarda korunur |
 | ❌ Uygulama menüsünde kayıt yok | ✅ Profil başına gerçek `.desktop` entegrasyonu |
-| ❌ Otomatik güncelleme yok | ✅ Arka planda indirir ve kurar, SHA512 doğrulamalı |
+| ❌ Otomatik güncelleme yok | ✅ Arka planda indirir, çıkışta kurar, SHA512 doğrulamalı |
 | ❌ Sohbeti kapatmak seni "online" tutar | ✅ İsteğe bağlı Esc-on-minimize sohbetten çıkarır |
 
 Öne çıkan özellik **tek uygulamada birden çok WhatsApp hesabı**. Her profil tamamen izole bir oturumdur (ayrı çerezler, localStorage, IndexedDB, HTTP önbelleği), böylece kişisel numaran ile iş numaranı bir tık uzağa koyabilirsin — gizli pencere, ikinci tarayıcı veya çıkış yapma olmadan. Bir anda tek profil görünür; her profilin penceresi arka planda canlı kaldığı için geçiş anındır.
@@ -60,6 +60,7 @@ Bir tarayıcı sekmesi WhatsApp masaüstü deneyiminin çoğunu verir — gerçe
 - **Açılış profili** — sade launch'te hangi hesabın açılacağını seç (Ayarlar → *Açılışta bu profili aç*)
 - **Gerçek bildirimler** — gelen mesajlar OS bildirim merkezine (libnotify / GNOME Shell / KDE) Whatsuck ikonuyla düşer; bildirime tıklamak doğru pencereyi öne getirir
 - **Yapılandırılabilir bildirimler** — aç/kapa, ses aç/kapa ve bildirim başına cooldown (varsayılan 1/sn) ile DoS koruması
+- **Sesli/görüntülü arama** — ilk arama mikrofon/kamera erişimi ister (İzin Ver/Reddet, cihaz başına hatırlanır); her birini Ayarlar'dan ayrı aç/kapa
 - **Harici linkler** — sohbetteki URL'ler uygulama içinde değil varsayılan tarayıcıda açılır
 
 ### 🖥️ Sistem entegrasyonu
@@ -81,8 +82,8 @@ Bir tarayıcı sekmesi WhatsApp masaüstü deneyiminin çoğunu verir — gerçe
 
 ### ⚙️ Teknik
 
-- **Gömülü Chromium** — Electron 35.7.5, Chromium ~130. Stabil Chrome'dan 2+ major geride kalırsa eskime uyarısı verilir
-- **Sade JavaScript** — TypeScript yok, bundler yok, transpile yok. `src/`'de ~21 dosya, ~1000 LOC
+- **Gömülü Chromium** — Electron 35.7.5, Chromium ~134. Stabil Chrome'dan 2+ major geride kalırsa eskime uyarısı verilir
+- **Sade JavaScript** — TypeScript yok, bundler yok, transpile yok. `src/` baştan sona okunabilir düz Node
 - **UA spoofing** — WhatsApp Web'in "Chrome 85+ ile çalışır" gate'i Electron'un varsayılan UA'sını reddeder; standart bir Linux Chrome UA'sını hem session hem webContents seviyesinde spooflarız
 - **Sağlam I/O** — bozuk `profiles.json` / `settings.json` otomatik yedeklenir ve yeniden tohumlanır, crash loop olmaz
 - **Atomik yazım** — tüm store'lar `.tmp`'ye yazar sonra `rename`
@@ -114,7 +115,7 @@ Setup betiği `curl`/`wget` ve `dpkg` kontrol eder, GitHub releases'ten son `.de
 ### Manuel kurulum
 
 ```bash
-sudo dpkg -i whatsuck_1.0.6_amd64.deb
+sudo dpkg -i whatsuck_1.0.9_amd64.deb
 sudo apt-get install -f   # eksik runtime bağımlılıklarını çöz
 ```
 
@@ -196,8 +197,8 @@ Tüm pencere için **Ayarlar → Ayarları Aç…**'ı aç, ya da Ayarlar menüs
 | Bildirimler açık | OS bildirimleri ana anahtarı |
 | Bildirim sesi | Her bildirimde ses çal (Linux'ta elden geldiğince; bazı masaüstleri `silent`'ı görmezden gelir) |
 | Bildirimler arası min gecikme | ms cinsinden cooldown (varsayılan 1000) — patlamaları yavaşlatır |
-| Mikrofon | WhatsApp Web sesli aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir |
-| Kamera | WhatsApp Web görüntülü aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir |
+| Mikrofon | WhatsApp Web sesli aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir. Bir değişikliği kaydetmek uygulamayı yeniden başlatır; böylece WhatsApp cihazı yeniden ister |
+| Kamera | WhatsApp Web görüntülü aramalarına izin/engel. İlk arama izin ister; buradan istediğiniz zaman değiştirir. Bir değişikliği kaydetmek uygulamayı yeniden başlatır; böylece WhatsApp cihazı yeniden ister |
 | Açılışta bu profili aç | Sade launch'te hangi profil açılır (`--profile=` CLI geçersiz kılar) |
 | Layout | Switch (tek görünür) / Tabs (tek pencere, Chrome gibi) / Windows (yan yana). Bir sonraki Sekme Aç'ta etkili |
 | Minimize'de Esc | Minimize ettiğinde Esc basar, açık sohbet seçimsiz kalır |
@@ -266,7 +267,7 @@ git clone https://github.com/yucOx/whatsuck.git
 cd whatsuck
 npm install        # Node 18+, npm
 npm start          # dev modu (auto-update ve keyring uyarıları atlanır)
-npm run build      # dist/whatsuck_1.0.6_amd64.deb üretir
+npm run build      # dist/whatsuck_1.0.9_amd64.deb üretir
 ```
 
 Build önkoşulları: Node 18+, npm ve `dpkg` (electron-builder `.deb` için ona çıkar). Debian/Ubuntu'da zaten vardır.
@@ -285,13 +286,13 @@ Modül haritası ve veri akışı için [ARCHITECTURE.md](ARCHITECTURE.md), katk
 Release'ler `v*` tag push'unda GitHub Actions ile otomatiktir:
 
 ```bash
-# 1. package.json'da sürümü bumpla (ör. 1.0.2 → 1.0.3)
+# 1. package.json'da sürümü bumpla (ör. 1.0.8 → 1.0.9)
 # 2. README.md ve README.tr.md'deki deb dosya adını güncelle
 # 3. Commit, tag, push:
-git commit -am "v1.0.3: değişiklik açıklaması"
-git tag v1.0.3
+git commit -am "v1.0.9: değişiklik açıklaması"
+git tag v1.0.9
 git push origin main
-git push origin v1.0.3
+git push origin v1.0.9
 ```
 
 Actions `npm ci` → `npm run build` → `.deb` eklenmiş bir GitHub Release oluşturur. Aynı isimde tag'i silip yeniden oluşturma — yeniden tetiklemek gerekirse force-move et (`git tag -f`).
@@ -322,7 +323,7 @@ Ekran görüntüleri yakında. Uygulama penceresi WhatsApp Web; dikkat çekici U
 
 **İki profili aynı anda nasıl görebilirim?** Ayarlar → Layout'tan **Tabs** (tek pencere, sekme çubuğu) veya **Windows** (ayrı pencereler yan yana) seç. Varsayılan **Switch** tek gösterir. Layout değişikliği bir sonraki açtığın profilde etkili (açık pencereler canlı taşınmaz).
 
-**Profil değiştirince iki pencere açılıyor.** Olmamalı — bir profil seç onu gösterir, gerisini gizler. İki görüyorsan eski bir build'desin; ≥ 1.0.2'ye güncelle.
+**Profil değiştirince iki pencere açılıyor.** Olmamalı — bir profil seç onu gösterir, gerisini gizler. İki görüyorsan eski bir build'desin; en son sürüme güncelle.
 
 **Yanlışlıkla bir profili sildim.** Geri alma yok — oturum verisi gitti. Profili yeniden oluştur ve QR'ı tekrar tara.
 
@@ -348,7 +349,7 @@ Ekran görüntüleri yakında. Uygulama penceresi WhatsApp Web; dikkat çekici U
 
 ## 🤝 Katkıda bulunma
 
-PR'ler welcome. Kod tabanı küçük (`src/`'de ~1000 LOC, 21 dosya); modül haritası için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bak. PR açmadan önce:
+PR'ler welcome. Kod tabanı küçük (sade JavaScript, build adımı yok); modül haritası için [ARCHITECTURE.md](ARCHITECTURE.md)'ye bak. PR açmadan önce:
 
 1. `npm run build` çalıştır ve `.deb`'in hâlâ kurulduğunu doğrula
 2. Değişikliğini dev modunda test et (`npm start`)

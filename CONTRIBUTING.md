@@ -1,8 +1,8 @@
 # Contributing to Whatsuck
 
-Thanks for your interest in contributing! Whatsuck is a small project (~700
-LOC across a dozen modules), which makes it easy to understand the whole
-codebase in one sitting.
+Thanks for your interest in contributing! Whatsuck is a small project (plain
+JavaScript, no build step, no bundler), which makes it easy to understand
+the whole codebase in one sitting.
 
 ## Quick start
 
