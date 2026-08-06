@@ -5,8 +5,8 @@
 <h1 align="center">Whatsuck</h1>
 
 <p align="center">
-  <strong>WhatsApp Web, native bir Ubuntu masaüstü uygulaması olarak.</strong><br>
-  Hesaplar arası geçiş, gerçek OS bildirimleri, sesli/görüntülü arama, otomatik güncelleme, keyring ile şifrelenmiş oturumlar — hepsi tek ~85 MB pakette.
+  <strong>İki veya daha fazla WhatsApp numarasını tek Ubuntu masaüstünde çalıştır.</strong><br>
+  Her hesap çevrimiçi kalan izole bir oturumdur — tek tıkla geç, QR yeniden tarama yok, ikinci tarayıcı veya gizli pencere karmaşası yok. Ayrıca gerçek OS bildirimleri, sesli/görüntülü arama, otomatik güncelleme ve keyring ile şifrelenmiş oturumlar — hepsi tek ~85 MB pakette.
 </p>
 
 <p align="center">

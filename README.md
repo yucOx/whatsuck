@@ -5,8 +5,8 @@
 <h1 align="center">Whatsuck</h1>
 
 <p align="center">
-  <strong>WhatsApp Web as a native Ubuntu desktop app.</strong><br>
-  Switch between multiple accounts, real OS notifications, voice/video calling, auto-update, keyring-encrypted sessions — all in one ~85 MB package.
+  <strong>Run two or more WhatsApp numbers on one Ubuntu desktop.</strong><br>
+  Each account is an isolated session that stays online — switch with one click, no QR re-scan, no second browser or incognito juggling. Plus real OS notifications, voice/video calling, auto-update, and keyring-encrypted sessions — all in one ~85 MB package.
 </p>
 
 <p align="center">
